@@ -143,10 +143,12 @@ game_core.prototype.update = function(dt) {
 	}
 	else {
 		this.client_update(dt);
+		if (dt>0) {
 		this.mf_total+=dt;
 		this.mf_count++;
 		if (this.mf_count%100==0) {
 			console.log('second pre frame(avg):'+this.mf_total/this.mf_count+'\nfps:'+this.mf_count/this.mf_total);
+		}
 		}
 	}
 };
