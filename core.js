@@ -28,6 +28,7 @@ var game_core = function(flag) {
         else {
         	this.id = '';
         	this.buffer=[];
+        	this.buffer_maxlength = 2000;
         	this.seq=0;
         	this.state={};
         }
@@ -83,30 +84,40 @@ game_core.prototype.client_initialize = function(enviroment) {
 	this.Q.gameLoop(this.update.bind(this));
 };
 game_core.prototype.client_onserverupdate=function(state) {
-	console.log('I received');
 	var temp_me = this.state.players[this.id];
+	var authority_me;
 
 	this.state.players=[];
 	this.state.players[this.id]=temp_me;
 
 	for (var index in state.players)
 		if (state.players[index].id != this.id)
-		this.state.players[state.players[index].id]=state.players[index];
+			this.state.players[state.players[index].id]=state.players[index];
+		else
+			authority_me = state.players[index];
 	
-	var head = this.seq;
-	for (var index in state.seqs)
-		if (this.id == state.seqs[index].id)
-			head = state.seqs[index].seq;
+	var head = -1;
 
-	if (!cmp(this.buffer[head].player,state.players[this.id]))	{   //历史状态比较
+	for (var index in state.seqs)
+		if (this.id == state.seqs[index].id) {
+			head = state.seqs[index].seq;
+			break;
+		}
+
+
+	if (head!=-1)
+	  if (!player_cmp(this.buffer[head].player,authority_me))	{   //历史状态比较
 		console.log('Correction entailed');
 		
 		//client rewind
-		this.state.players[this.id]=state.players[this.id];
+		this.state.players[this.id]=authority_me;
 
 		//client replay
-		for (var i=head+1;i<=this.seq;i++)
-			this.process_inputs(this.state.players[this.id],this.buffer[i].input,0.0166666);
+		for (var i=head+1;i!=this.seq;i=(i+1)%this.buffer_maxlength) {
+			this.process_inputs(this.state.players[this.id],this.buffer[i].input,0.0166689);
+			this.buffer[i].player={};
+			$.extend(true,this.buffer[i].player,this.state.players[this.id]);
+		}
 	}
 };
 
@@ -117,7 +128,6 @@ game_core.prototype.server_initialize = function() {
 game_core.prototype.server_add_player = function(nickname) {
 	this.players[nickname]=new game_player(nickname);
 	this.inputs[nickname]=[];
-	this.seqs[nickname]=[];
 	this.active = true;
 	this.player_count++;
 };
@@ -126,8 +136,9 @@ game_core.prototype.update = function(dt) {
 	if (this.isServer) {
 		if (this.active) this.server_update(dt);
 	}
-	else
+	else {
 		this.client_update(dt);
+	}
 };
 
 game_core.prototype.client_update = function(dt) {
@@ -145,7 +156,8 @@ game_core.prototype.client_update = function(dt) {
     if (kb.pressed('A'))
         msg.input=msg.input+'a';
     if (kb.pressed('D'))
-        msg.input=msg.input+'d';    
+        msg.input=msg.input+'d';
+   
 
     if (msg.input!='') {
     	this.game.socket.emit('client_input',msg);										//向服务器发送操作
@@ -157,7 +169,7 @@ game_core.prototype.client_update = function(dt) {
     		this.buffer[this.seq].input=msg.input;
     		$.extend(true,this.buffer[this.seq].player,this.state.players[this.id]);	//深拷贝
 
-    		this.seq=(this.seq+1)%200;													//循环队列，容量为200
+    		this.seq=(this.seq+1)%this.buffer_maxlength;													//循环队列，容量为200
     	}
 	}
     
@@ -220,13 +232,11 @@ game_core.prototype.server_update = function(dt) {
 	for (var id in this.players) {
 		if (this.inputs[id]!=undefined) {
 
-			this.seqs[id]=-1;
 			for (var unit_index in this.inputs[id]) {
 				var msg=this.inputs[id][unit_index];
 
 				this.process_inputs( this.players[id] , msg.input , dt );
-				if (msg.seq>this.seqs[id])
-					this.seqs[id]=msg.seq;
+				this.seqs[id]=msg.seq;
 
 			}
 			this.inputs[id]=[];
@@ -243,7 +253,6 @@ game_core.prototype.check_collision = function(player) {
 };
 game_core.prototype.server_handle_inputs = function(msg) {
 	if (this.inputs[msg.id]!=undefined)
-		if (Math.random()<0.8)
 			this.inputs[msg.id].push(msg);
 };
 
@@ -254,8 +263,12 @@ game_core.prototype.server_snapshot = function() {
 	};
 	for (var id in this.players) {
 		state.players.push(this.players[id]);
-		state.seqs.push({seq:this.seqs[id],id:id});
+		if (this.seqs[id]!=undefined)
+			state.seqs.push({seq:this.seqs[id],id:id});
+		else
+			state.seqs.push({seq:-1,id:id});
 	}
+	this.seqs=[];
 	return state;
 };
 
@@ -270,23 +283,13 @@ game_core.prototype.server_remove_player = function(id) {
 	}
 }
 
-var cmp = function( x, y ) {  
-        // If both x and y are null or undefined and exactly the same
-        if ( x === y ) {  
-            return true;  
-        }  
-  
-        // If they are not strictly equal, they both need to be Objects
-        if ( ! ( x instanceof Object ) || ! ( y instanceof Object ) ) {  
-            return false;  
-        }  
-  
-        // They must have the exact same prototype chain, the closest we can do is
-        // test the constructor.
-        if ( x.constructor !== y.constructor ) {  
-            return false;  
-        }  
-  
+var player_cmp = function( x, y ) {  
+
+    var isNumber = function(x) {return (typeof x =='number');};
+    var isString = function(x) {return (typeof x =='string');};
+    var isObject = function(x) {return (typeof x =='object');};
+
+        if (x===y) return true;
         for ( var p in x ) {  
             // Inherited properties were tested using x.constructor === y.constructor
             if ( x.hasOwnProperty( p ) ) {  
@@ -296,28 +299,26 @@ var cmp = function( x, y ) {
                 }  
   
                 // If they have the same strict value or identity then they are equal
-                if ( x[ p ] === y[ p ] ) {  
-                    continue;  
-                }  
-  
-                // Numbers, Strings, Functions, Booleans must be strictly equal
-                if ( typeof( x[ p ] ) !== "object" ) {  
-                    return false;  
-                }  
-  
-                // Objects and Arrays must be tested recursively
-                if ( ! Object.is( x[ p ],  y[ p ] ) ) {  
-                    return false;  
-                }  
-            }  
-        }  
-  
-        for ( p in y ) {  
-            // allows x[ p ] to be set to undefined
-            if ( y.hasOwnProperty( p ) && ! x.hasOwnProperty( p ) ) {  
-                return false;  
+                if ( x[ p ] === y[ p ]) continue;
+
+                if (isString(x[p]) || isString(y[p]))
+                    if (x[p]!==y[p]) return false;
+                        else continue;
+
+                if ((isNumber(x[p]) && !isNumber(y[p]))||(!isNumber(x[p]) && isNumber(y[p])))
+                    return false;
+                else if (isNumber(x[p]))
+                        if (Math.abs(x[p]-y[p])>0.01)
+                            return false;
+                        else continue;
+
+                if (isObject(x[p]) && isObject(y[p])) {
+                    if (player_cmp(x[p],y[p])==false)
+                        return false;
+                }
+                else return false;
             }  
         }  
         return true;  
-    };  
+    }; 
 
