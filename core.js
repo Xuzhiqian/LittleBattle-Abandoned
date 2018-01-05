@@ -31,6 +31,9 @@ var game_core = function(flag) {
         	this.buffer_maxlength = 2000;
         	this.seq=0;
         	this.state={};
+
+        	this.mf_total=0;
+        	this.mf_count=0;
         }
 };
 
@@ -130,6 +133,7 @@ game_core.prototype.server_add_player = function(nickname) {
 	this.inputs[nickname]=[];
 	this.active = true;
 	this.player_count++;
+	console.log(nickname+' join the game.');
 };
 
 game_core.prototype.update = function(dt) {
@@ -138,6 +142,11 @@ game_core.prototype.update = function(dt) {
 	}
 	else {
 		this.client_update(dt);
+		this.mf_total+=dt;
+		this.mf_count++;
+		if (this.mf_count%100==0) {
+			console.log('second pre frame(avg):'+this.mf_total/this.mf_count+'\nfps:'+this.mf_count/this.mf_total);
+		}
 	}
 };
 
@@ -279,7 +288,7 @@ game_core.prototype.server_remove_player = function(id) {
 	this.player_count--;
 	if (this.player_count<=0) {
 		this.active = false;		//没有玩家连接时服务器不再更新
-		console.log('nobody is in the game. deactivated.');
+		console.log('nobody is in the game. server deactivated.');
 	}
 }
 
