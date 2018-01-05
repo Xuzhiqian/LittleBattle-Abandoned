@@ -20,9 +20,9 @@ core.server_initialize();
 
 io.on("connection", function(socket){
 
-    socket.on("join", function(nickname){
-        core.server_add_player(nickname);
-        socket.client_id = nickname;
+    socket.on("join", function(status){
+        core.server_add_player(status);
+        socket.client_id = status.id;
     });
     
     socket.on("client_input", function(msg){

@@ -1,16 +1,20 @@
 
-var global_width = 800,
-	global_height = 600;
+	var global_width = 800,
+		global_height = 600;
 
-var global_posmin={x:0,y:0},
-	global_posmax={x:global_width,y:global_height};
+	var global_posmin={x:0,y:0},
+		global_posmax={x:global_width,y:global_height};
 
-var player_size ={x:10,y:5};
+	var player_size ={x:16,y:8};
 
-var delta_degree = 2*3.1415926/360*100;
+	var color_table=['super','aqua','Aquamarine','Chartreuse','Coral','LightCyan','LightSlateBlue','RoyalBlue','Violet','VioletRed','Purple','orange']
+	var color_table_length = color_table.length;
 
-var v_a = function(a,b) {return {x: a.x+b.x , y: a.y+b.y}};
-var v_n = function(a,b) {return {x: a.x*b   , y: a.y*b  }};
+	var delta_degree = 2*3.1415926/360*100;
+
+	var v_a = function(a,b) {return {x: a.x+b.x , y: a.y+b.y}};
+	var v_n = function(a,b) {return {x: a.x*b   , y: a.y*b  }};
+
 
 var game_core = function(flag) {
 		
@@ -46,11 +50,18 @@ var game_player = function(nickname) {
 	this.pos={x:100,y:100};
 	this.health = {cur:100,max:100};
 	this.dir={theta:0,x:1,y:0};
-	this.speed=200;
+	this.speed={cur:0,max:150,acc:100}
+	this.color=0;
 };
 
-var move_f = function(p,dt){p.pos=v_a(p.pos,v_n(p.dir,dt*p.speed))};
-var move_b = function(p,dt){p.pos=v_a(p.pos,v_n(p.dir,-dt*p.speed))};
+var move_f = function(p,dt) {
+	p.speed.cur=Math.min(p.speed.cur+dt*p.speed.acc,p.speed.max);  
+	p.pos=v_a(p.pos,v_n(p.dir,dt*p.speed.cur))
+};
+var move_b = function(p,dt) {
+	p.speed.cur=Math.min(p.speed.cur+dt*p.speed.acc,p.speed.max);   
+	p.pos=v_a(p.pos,v_n(p.dir,-dt*p.speed.cur))
+};
 var turn_l = function(p,dt){
 		p.dir.theta-=delta_degree*dt;
 		p.dir.x=Math.cos(p.dir.theta);
@@ -74,14 +85,29 @@ game_core.prototype.client_initialize = function(enviroment) {
 		map:enviroment.map,
 		ctx:enviroment.ctx
 	}
+
+  //彩虹色设置
+  this.supercolor  = this.game.ctx.createLinearGradient(-player_size.x,-player_size.y,player_size.x,player_size.y);
+  this.supercolor.addColorStop(0,color_table[Math.floor(Math.random()*(color_table_length-1))+1]);      
+  this.supercolor.addColorStop(0.24,color_table[Math.floor(Math.random()*(color_table_length-1))+1]); 
+  this.supercolor.addColorStop(0.40,color_table[Math.floor(Math.random()*(color_table_length-1))+1]);
+  this.supercolor.addColorStop(0.52,color_table[Math.floor(Math.random()*(color_table_length-1))+1]);
+  this.supercolor.addColorStop(0.63,color_table[Math.floor(Math.random()*(color_table_length-1))+1]);
+  this.supercolor.addColorStop(0.76,color_table[Math.floor(Math.random()*(color_table_length-1))+1]);
+  this.supercolor.addColorStop(0.90,color_table[Math.floor(Math.random()*(color_table_length-1))+1]);
+  //彩虹色设置结束
 	
 	this.game.map.width = global_width;
 	this.game.map.height = global_height;
-	this.game.ctx.font = '11px "Helvetica"';
+	this.game.ctx.font = '13px "Helvetica"';
 	this.id = this.game.socket.client_id;
 	this.state.players=[];
 	this.state.players[this.id] = new game_player(this.id);
-	this.game.socket.emit('join',this.id);
+	this.state.players[this.id].color = Math.floor(Math.random()*color_table_length);
+
+	if (this.id=='xzq') this.state.players[this.id].color=0; //Just for fun!
+
+	this.game.socket.emit('join',{id:this.id,color:this.state.players[this.id].color});
 
 	this.game.socket.on('on_server_update',this.client_onserverupdate.bind(this));	//接受服务器端游戏状态并无条件更新
 
@@ -129,12 +155,13 @@ game_core.prototype.server_initialize = function() {
 	this.Q.gameLoop(this.update.bind(this));
 };
 
-game_core.prototype.server_add_player = function(nickname) {
-	this.players[nickname]=new game_player(nickname);
-	this.inputs[nickname]=[];
+game_core.prototype.server_add_player = function(status) {
+	this.players[status.id]=new game_player(status.id);
+	this.players[status.id].color = status.color;
+	this.inputs[status.id]=[];
 	this.active = true;
 	this.player_count++;
-	console.log(nickname+' join the game.');
+	console.log(status.id+' join the game.');
 };
 
 game_core.prototype.update = function(dt) {
@@ -207,7 +234,14 @@ game_core.prototype.client_render_player = function(player) {
 
 	ctx.rotate(player.dir.theta);						//倾斜theta角度
 
-	ctx.fillStyle = 'orange';
+	if (player.color>0)
+		ctx.fillStyle = color_table[player.color];
+	else {
+		//彩虹色
+		ctx.beginPath();
+		ctx.fillStyle=this.supercolor;
+	}
+
 	ctx.fillRect(-rx,-ry,2*rx,2*ry);						//绘制车身
 
 	ctx.restore();
@@ -221,13 +255,16 @@ game_core.prototype.client_render = function() {
 };
 
 game_core.prototype.process_inputs = function(p,inputs,dt) {
+	var isacced = false;
 	for (var i=0;i<inputs.length;i++) {
 				switch (inputs[i]) {
 					case 'w':
 						move_f(p,dt);
+						isacced=true;
 						break;
 					case 's':
 						move_b(p,dt);
+						isacced=true;
 						break;
 					case 'a':
 						turn_l(p,dt);
@@ -238,6 +275,7 @@ game_core.prototype.process_inputs = function(p,inputs,dt) {
 				}
 			}
 	this.check_collision(p);
+	if (!isacced) p.speed.cur=0;
 };
 
 game_core.prototype.server_update = function(dt) {
