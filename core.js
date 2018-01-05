@@ -32,8 +32,7 @@ var game_core = function(flag) {
         	this.seq=0;
         	this.state={};
 
-        	this.mf_total=0;
-        	this.mf_count=0;
+
         }
 };
 
@@ -65,6 +64,8 @@ var turn_r = function(p,dt){
 
 game_core.prototype.client_initialize = function(enviroment) {
 	this.is_client_predict= true;
+	this.mf_total=0;
+    this.mf_count=0;
 
 
 	this.game = {
