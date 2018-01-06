@@ -5,7 +5,7 @@
 	var global_posmin={x:0,y:0},
 		global_posmax={x:global_width,y:global_height};
 
-	var player_size ={x:16,y:8};
+	var player_size = 12;
 
 	var color_table=['super','aqua','Aquamarine','Chartreuse','Coral','LightCyan','LightSlateBlue','RoyalBlue','Violet','VioletRed','Purple','orange']
 	var color_table_length = color_table.length;
@@ -24,6 +24,7 @@ var game_core = function(flag) {
         if (this.isServer) {
         	this.player_count=0;
         	this.players=[];
+        	this.bullets=[];
         	this.inputs=[];
         	this.seqs=[];
         	this.active = false;
@@ -49,29 +50,69 @@ var game_player = function(nickname) {
 	this.id = nickname;
 	this.pos={x:100,y:100};
 	this.health = {cur:100,max:100};
-	this.dir={theta:0,x:1,y:0};
-	this.speed={cur:0,max:150,acc:100}
+	this.speed={x:{cur:0,max:120,acc:180},y:{cur:0,max:100,acc:180}};
 	this.color=0;
 };
 
-var move_f = function(p,dt) {
-	p.speed.cur=Math.min(p.speed.cur+dt*p.speed.acc,p.speed.max);  
-	p.pos=v_a(p.pos,v_n(p.dir,dt*p.speed.cur))
+var move_u = function(p,dt) {
+	p.speed.y.cur=Math.max(p.speed.y.cur-dt*p.speed.y.acc,-p.speed.y.max);  
 };
-var move_b = function(p,dt) {
-	p.speed.cur=Math.min(p.speed.cur+dt*p.speed.acc,p.speed.max);   
-	p.pos=v_a(p.pos,v_n(p.dir,-dt*p.speed.cur))
+var move_d = function(p,dt) {
+	p.speed.y.cur=Math.min(p.speed.y.cur+dt*p.speed.y.acc,p.speed.y.max);  
 };
-var turn_l = function(p,dt){
-		p.dir.theta-=delta_degree*dt;
-		p.dir.x=Math.cos(p.dir.theta);
-		p.dir.y=Math.sin(p.dir.theta);
+var move_l = function(p,dt){
+	p.speed.x.cur=Math.max(p.speed.x.cur-dt*p.speed.x.acc,-p.speed.x.max);  
 };
-var turn_r = function(p,dt){
-		p.dir.theta+=delta_degree*dt;
-		p.dir.x=Math.cos(p.dir.theta);
-		p.dir.y=Math.sin(p.dir.theta);
+var move_r = function(p,dt){
+	p.speed.x.cur=Math.min(p.speed.x.cur+dt*p.speed.x.acc,p.speed.x.max);  
 };
+
+var update_player_physics = function(p,dt,is_no_input){
+	if (is_no_input) {
+		if (p.speed.x.cur>0)
+			p.speed.x.cur = Math.max(0,p.speed.x.cur-dt*p.speed.x.acc);
+		else
+			p.speed.x.cur = Math.min(0,p.speed.x.cur+dt*p.speed.x.acc);
+		if (p.speed.y.cur>0)
+			p.speed.y.cur = Math.max(0,p.speed.y.cur-dt*p.speed.y.acc);
+		else
+			p.speed.y.cur = Math.min(0,p.speed.y.cur+dt*p.speed.y.acc);
+	}
+	p.pos.x=p.pos.x+p.speed.x.cur*dt;
+	p.pos.y=p.pos.y+p.speed.y.cur*dt;
+	if (p.pos.x<0) p.pos.x=0;
+	if (p.pos.y<0) p.pos.y=0;
+	if (p.pos.x>global_width) 	p.pos.x=global_width;
+	if (p.pos.y>global_height) 	p.pos.y=global_height;
+}
+/*
+var bullet = function(start_pos,start_dir) {
+	this.pos = {x:start_pos.x,y:start_pos.y};
+	this.speed = 300;
+	this.lifespan = 10;
+	this.dir = {x:start_dir.x,y:start_dir.y};
+}
+
+bullet.prototype.update = function(dt){
+	this.pos = v_a(this.pos,v_n(this.dir,dt*this.speed));
+	if (this.pos.x<0) {
+		this.pos.x=0;
+		this.dir.x=-this.dir.x;
+	}
+	if (this.pos.y<0) {
+		this.pos.y=0;
+		this.dir.y=-this.dir.y;
+	}
+	if (this.pos.x>global_width) {
+		this.pos.x=global_width;
+		this.dir.x=-this.dir.x;
+	}
+	if (this.pos.y>global_height) {
+		this.pos.y=global_height;
+		this.dir.y=-this.dir.y;
+	}
+}
+*/
 
 game_core.prototype.client_initialize = function(enviroment) {
 	this.is_client_predict= true;
@@ -87,7 +128,7 @@ game_core.prototype.client_initialize = function(enviroment) {
 	}
 
   //彩虹色设置
-  this.supercolor  = this.game.ctx.createLinearGradient(-player_size.x,-player_size.y,player_size.x,player_size.y);
+  this.supercolor  = this.game.ctx.createRadialGradient(0,0,0,0,0,player_size);
   this.supercolor.addColorStop(0,color_table[Math.floor(Math.random()*(color_table_length-1))+1]);      
   this.supercolor.addColorStop(0.24,color_table[Math.floor(Math.random()*(color_table_length-1))+1]); 
   this.supercolor.addColorStop(0.40,color_table[Math.floor(Math.random()*(color_table_length-1))+1]);
@@ -97,6 +138,11 @@ game_core.prototype.client_initialize = function(enviroment) {
   this.supercolor.addColorStop(0.90,color_table[Math.floor(Math.random()*(color_table_length-1))+1]);
   //彩虹色设置结束
 	
+	//攻击设置
+	this.attack_cd = 2;
+	this.can_atk = true;
+	//攻击设置结束
+
 	this.game.map.width = global_width;
 	this.game.map.height = global_height;
 	this.game.ctx.font = '13px "Helvetica"';
@@ -170,6 +216,7 @@ game_core.prototype.update = function(dt) {
 	}
 	else {
 		this.client_update(dt);
+		/*
 		if (dt>0) {
 		this.mf_total+=dt;
 		this.mf_count++;
@@ -177,6 +224,7 @@ game_core.prototype.update = function(dt) {
 			console.log('second pre frame(avg):'+this.mf_total/this.mf_count+'\nfps:'+this.mf_count/this.mf_total);
 		}
 		}
+		*/
 	}
 };
 
@@ -196,9 +244,14 @@ game_core.prototype.client_update = function(dt) {
         msg.input=msg.input+'a';
     if (kb.pressed('D'))
         msg.input=msg.input+'d';
+    /*
+    if (kb.pressed('J') && this.can_atk) {
+    	msg.input=msg.input+'j';
+    	this.can_atk=false;
+    	setTimeout((function(){this.can_atk=true;}).bind(this),this.attack_cd*1000);
+    }*/
    
 
-    if (msg.input!='') {
     	this.game.socket.emit('client_input',msg);										//向服务器发送操作
     	if (this.is_client_predict) {
     		this.process_inputs(this.state.players[this.id],msg.input,dt);				//客户端立即更新状态
@@ -210,7 +263,6 @@ game_core.prototype.client_update = function(dt) {
 
     		this.seq=(this.seq+1)%this.buffer_maxlength;													//循环队列，容量为200
     	}
-	}
     
     
     this.client_render();
@@ -218,32 +270,29 @@ game_core.prototype.client_update = function(dt) {
 
 game_core.prototype.client_render_player = function(player) {
 	var ctx = this.game.ctx;
-	var rx = player_size.x;
-	var ry = player_size.y;
+	var r = player_size;
 
 	ctx.save();
 
 	ctx.translate(player.pos.x,player.pos.y);			//画布偏移至玩家中心
 
 	ctx.fillStyle = 'white';
-	ctx.fillText(player.id,-rx,-ry-10);					//绘制id
+	ctx.fillText(player.id,-r,-r-12);					//绘制id
 
 	ctx.fillStyle = 'green';								//绘制血槽
-	ctx.fillRect(-rx,-ry-7,player.health.cur/player.health.max*2*rx,5);
+	ctx.fillRect(-r,-r-9,player.health.cur/player.health.max*2*r,5);
 
-
-	ctx.rotate(player.dir.theta);						//倾斜theta角度
-
+	ctx.beginPath();
+	ctx.arc(0,0,r,0,2*Math.PI);							//绘制圆形轮廓
+	ctx.lineWidth = 5;
+	ctx.strokeStyle = 'white';
+	ctx.stroke();
 	if (player.color>0)
 		ctx.fillStyle = color_table[player.color];
-	else {
-		//彩虹色
-		ctx.beginPath();
+	else 
 		ctx.fillStyle=this.supercolor;
-	}
 
-	ctx.fillRect(-rx,-ry,2*rx,2*ry);						//绘制车身
-
+	ctx.fill();						
 	ctx.restore();
 };
 
@@ -255,27 +304,33 @@ game_core.prototype.client_render = function() {
 };
 
 game_core.prototype.process_inputs = function(p,inputs,dt) {
-	var isacced = false;
+
 	for (var i=0;i<inputs.length;i++) {
 				switch (inputs[i]) {
 					case 'w':
-						move_f(p,dt);
-						isacced=true;
+						move_u(p,dt);
 						break;
 					case 's':
-						move_b(p,dt);
-						isacced=true;
+						move_d(p,dt);
 						break;
 					case 'a':
-						turn_l(p,dt);
+						move_l(p,dt);
 						break;
 					case 'd':
-						turn_r(p,dt);
+						move_r(p,dt);
 						break;
+					/*
+					case 'j':
+						if (this.isServer) {
+							var bullet_index =this.bullets.push(new bullet(p.pos,p.dir))-1;
+							setTimeout((function(bullet_index){delete this.bullets[bullet_index]}).bind(this),this.bullets[bullet_index].lifespan*1000);
+						}
+						break;
+						*/
 				}
 			}
-	this.check_collision(p);
-	if (!isacced) p.speed.cur=0;
+	update_player_physics(p,dt,inputs=='');
+	
 };
 
 game_core.prototype.server_update = function(dt) {
@@ -295,12 +350,6 @@ game_core.prototype.server_update = function(dt) {
 	}
 };
 
-game_core.prototype.check_collision = function(player) {
-	if (player.pos.x < 0) player.pos.x=0;
-	if (player.pos.y < 0) player.pos.y=0;
-	if (player.pos.x > global_width) player.pos.x=global_width;
-	if (player.pos.y > global_height) player.pos.y=global_height;
-};
 game_core.prototype.server_handle_inputs = function(msg) {
 	if (this.inputs[msg.id]!=undefined)
 			this.inputs[msg.id].push(msg);
