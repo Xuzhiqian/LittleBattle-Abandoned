@@ -1,6 +1,9 @@
 
-	var global_width = 800,
-		global_height = 600;
+	var global_width = 2000,
+		global_height = 1500;
+
+	var map_width = 800;
+	var map_height = 600;
 
 	var global_posmin={x:0,y:0},
 		global_posmax={x:global_width,y:global_height};
@@ -48,7 +51,8 @@ if( 'undefined' != typeof global ) {
 
 var game_player = function(nickname) {
 	this.id = nickname;
-	this.pos={x:100,y:100};
+	this.pos={x:Math.floor(Math.random()*global_width),
+			  y:Math.floor(Math.random()*global_height)};
 	this.health = {cur:100,max:100};
 	this.speed={x:{cur:0,max:120,acc:180},y:{cur:0,max:100,acc:180}};
 	this.dir = 0;
@@ -91,7 +95,7 @@ var update_player_physics = function(p,dt,is_no_x,is_no_y){
 
 var bullet = function(start_pos,start_dir,color) {
 	this.pos = {x:start_pos.x,y:start_pos.y};
-	this.speed = 180;
+	this.speed = 240;
 	this.life = {cur:0,max:6};
 	this.dir = {x:Math.cos(start_dir),y:Math.sin(start_dir)};
 	this.color=color;
@@ -149,7 +153,8 @@ game_core.prototype.client_initialize = function(enviroment) {
 	this.is_mouseclicked = false;
 	//攻击设置结束
 
-	//鼠标事件设置
+	//鼠标设置
+	this.mouse_pos={x:0,y:0};
 	this.game.map.addEventListener('mousemove', (function(e) {
 		var rect = this.game.map.getBoundingClientRect();
 		this.mouse_pos = {x:e.clientX-rect.left,
@@ -159,10 +164,10 @@ game_core.prototype.client_initialize = function(enviroment) {
 	this.game.map.addEventListener('click', (function(e) {
 		this.is_mouseclicked=true;
 	}).bind(this));
-	//鼠标时间设置结束
+	//鼠标设置结束
 
-	this.game.map.width = global_width;
-	this.game.map.height = global_height;
+	this.game.map.width = map_width;
+	this.game.map.height = map_height;
 	this.game.ctx.font = '13px "Helvetica"';
 	this.id = this.game.socket.client_id;
 	this.state.players=[];
@@ -171,10 +176,12 @@ game_core.prototype.client_initialize = function(enviroment) {
 
 	if (this.id=='xzq') this.state.players[this.id].color=0; //Just for fun!
 
-	this.game.socket.emit('join',{id:this.id,color:this.state.players[this.id].color});
+	this.game.socket.emit('join',{id:this.id,
+							   color:this.state.players[this.id].color,
+							     pos:{x:this.state.players[this.id].pos.x,
+							          y:this.state.players[this.id].pos.y}});
 
 	this.game.socket.on('on_server_update',this.client_onserverupdate.bind(this));	//接受服务器端游戏状态并无条件更新
-
 	this.Q.gameLoop(this.update.bind(this));
 };
 game_core.prototype.client_onserverupdate=function(state) {
@@ -224,6 +231,7 @@ game_core.prototype.server_initialize = function() {
 game_core.prototype.server_add_player = function(status) {
 	this.players[status.id]=new game_player(status.id);
 	this.players[status.id].color = status.color;
+	this.players[status.id].pos = status.pos;
 	this.inputs[status.id]=[];
 	this.active = true;
 	this.player_count++;
@@ -271,10 +279,8 @@ game_core.prototype.client_update = function(dt) {
     msg.input.kb = km;
 
     //获取鼠标输入
-    var px = this.state.players[this.id].pos.x;
-    var py = this.state.players[this.id].pos.y;
-    msg.input.ms = Math.atan((this.mouse_pos.y-py)/(this.mouse_pos.x-px));
-    if (this.mouse_pos.x<px) msg.input.ms+=Math.PI;
+    msg.input.ms = Math.atan((this.mouse_pos.y-map_height/2)/(this.mouse_pos.x-map_width/2));
+    if (this.mouse_pos.x<map_width/2) msg.input.ms+=Math.PI;
 
 
     	this.game.socket.emit('client_input',msg);										//向服务器发送操作
@@ -293,12 +299,50 @@ game_core.prototype.client_update = function(dt) {
     this.client_render();
 };
 
+game_core.prototype.client_render_background = function() {
+	var ctx = this.game.ctx;
+	var me = this.state.players[this.id];
+
+	ctx.save();
+	ctx.lineWidth=1;
+	ctx.strokeStyle = 'rgba(136,136,136,0.25)';
+
+	var stepX = 50, stepY = 50;
+	var border_r = Math.min(map_width/2,global_width-me.pos.x)+map_width/2,
+		border_d = Math.min(map_height/2,global_height-me.pos.y)+map_height/2,
+		border_l = map_width/2-Math.min(map_width/2,me.pos.x);
+		border_u = map_height/2-Math.min(map_height/2,me.pos.y);
+
+	var paddingX = (me.pos.x<map_width/2)?0:stepX-me.pos.x%stepX,
+		paddingY = (me.pos.y<map_height/2)?0:stepY-me.pos.y%stepY;
+
+
+	for (var i = paddingY + border_u ;i<border_d+0.5;i+=stepY) {	//绘制横线
+		ctx.beginPath();
+		ctx.moveTo(border_l,i);
+		ctx.lineTo(border_r,i);
+		ctx.stroke();
+	}
+	for (var i = paddingX + border_l ;i<border_r+0.5;i+=stepX) {	//绘制竖线
+		ctx.beginPath();
+		ctx.moveTo(i,border_u);
+		ctx.lineTo(i,border_d);
+		ctx.stroke();
+	}
+	ctx.restore();
+};
+
 game_core.prototype.client_render_bullet = function(bullet) {
 	var ctx = this.game.ctx;
 	var r = 6;
+	var me = this.state.players[this.id];
+
+    if (Math.abs(bullet.pos.x-me.pos.x)>map_width/2 ||
+		Math.abs(bullet.pos.y-me.pos.y)>map_height/2) return;	 //超出视野
+
 
 	ctx.save();
-	ctx.translate(bullet.pos.x,bullet.pos.y);
+	ctx.translate(bullet.pos.x-me.pos.x+map_width/2,bullet.pos.y-me.pos.y+map_height/2);
 
 	ctx.beginPath();
 	ctx.arc(0,0,r,0,2*Math.PI);							//绘制圆形轮廓
@@ -319,10 +363,14 @@ game_core.prototype.client_render_bullet = function(bullet) {
 game_core.prototype.client_render_player = function(player) {
 	var ctx = this.game.ctx;
 	var r = player_size;
+	var me = this.state.players[this.id];
+
+	if (Math.abs(player.pos.x-me.pos.x)>map_width/2 ||
+		Math.abs(player.pos.y-me.pos.y)>map_height/2) return;	 //超出视野
 
 	ctx.save();
 
-	ctx.translate(player.pos.x,player.pos.y);			//画布偏移至玩家中心
+	ctx.translate(player.pos.x-me.pos.x+map_width/2,player.pos.y-me.pos.y+map_height/2);			//画布偏移至玩家中心
 
 	ctx.fillStyle = 'white';
 	ctx.fillText(player.id,-r,-r-12);					//绘制id
@@ -355,7 +403,9 @@ game_core.prototype.client_render_player = function(player) {
 };
 
 game_core.prototype.client_render = function() {
-	this.game.ctx.clearRect(0,0,global_width,global_height);
+	this.game.ctx.clearRect(0,0,map_width,map_height);
+
+	this.client_render_background();
 	for (var id in this.state.players) {
 		this.client_render_player(this.state.players[id]);
 	}
