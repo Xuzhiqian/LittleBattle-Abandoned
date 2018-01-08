@@ -1,6 +1,6 @@
 
-	var global_width = 2000,
-		global_height = 1500;
+	var global_width = 2400,
+		global_height = 1800;
 
 	var map_width = 800;
 	var map_height = 600;
@@ -8,7 +8,8 @@
 	var global_posmin={x:0,y:0},
 		global_posmax={x:global_width,y:global_height};
 
-	var player_size = 12;
+	var player_size = 15;
+	var bullet_size = 5;
 
 	var color_table=['super','aqua','Aquamarine','Chartreuse','Coral','LightCyan','LightSlateBlue','RoyalBlue','Violet','VioletRed','Purple','orange']
 	var color_table_length = color_table.length;
@@ -57,6 +58,10 @@ var game_player = function(nickname) {
 	this.speed={x:{cur:0,max:120,acc:180},y:{cur:0,max:100,acc:180}};
 	this.dir = 0;
 	this.color=0;
+	this.size = player_size;
+
+	this.bullet_bias = 0.1;
+	this.bullet_life = 5;
 };
 
 var move_u = function(p,dt) {
@@ -91,14 +96,21 @@ var update_player_physics = function(p,dt,is_no_x,is_no_y){
 	if (p.pos.y<0) p.pos.y=0;
 	if (p.pos.x>global_width) 	p.pos.x=global_width;
 	if (p.pos.y>global_height) 	p.pos.y=global_height;
-}
+};
 
-var bullet = function(start_pos,start_dir,color) {
-	this.pos = {x:start_pos.x,y:start_pos.y};
+var bullet = function(p) {
+
+	this.pos = {x:p.pos.x,y:p.pos.y};
 	this.speed = 240;
-	this.life = {cur:0,max:6};
+	this.life = {cur:0,max:p.bullet_life};
+
+	var b = p.bullet_bias;
+	var start_dir = p.dir+Math.PI/2*(Math.random()*2*b-b);	//弹道偏移
 	this.dir = {x:Math.cos(start_dir),y:Math.sin(start_dir)};
-	this.color=color;
+	this.color= p.color;
+	this.size = bullet_size;
+	this.damage = 10;
+	this.owner_id = p.id;
 }
 
 bullet.prototype.update = function(dt){
@@ -148,7 +160,7 @@ game_core.prototype.client_initialize = function(enviroment) {
   	//彩虹色设置结束
 	
 	//攻击设置
-	this.attack_cd = 1;
+	this.attack_cd = 0.2;
 	this.can_atk = true;
 	this.is_mouseclicked = false;
 	//攻击设置结束
@@ -170,22 +182,31 @@ game_core.prototype.client_initialize = function(enviroment) {
 	this.game.map.height = map_height;
 	this.game.ctx.font = '13px "Helvetica"';
 	this.id = this.game.socket.client_id;
+	this.state.bullets=[];
 	this.state.players=[];
 	this.state.players[this.id] = new game_player(this.id);
 	this.state.players[this.id].color = Math.floor(Math.random()*color_table_length);
 
 	if (this.id=='xzq') this.state.players[this.id].color=0; //Just for fun!
 
-	this.game.socket.emit('join',{id:this.id,
+	this.game.socket.emit('join',{id:this.id,								
 							   color:this.state.players[this.id].color,
 							     pos:{x:this.state.players[this.id].pos.x,
-							          y:this.state.players[this.id].pos.y}});
+							          y:this.state.players[this.id].pos.y}});	//向服务器发送id，颜色和出生位置
 
 	this.game.socket.on('on_server_update',this.client_onserverupdate.bind(this));	//接受服务器端游戏状态并无条件更新
-	this.Q.gameLoop(this.update.bind(this));
+	this.Q.gameLoop(this.client_update.bind(this));
 };
 game_core.prototype.client_onserverupdate=function(state) {
-	this.state.bullets=state.bullets;
+	//新增bullet
+	for (var index in state.bullets)
+		if (!this.state.bullets[index] && !!state.bullets[index]) {
+			this.state.bullets[index]=state.bullets[index];
+			this.state.bullets[index].update = bullet.prototype.update;
+		}
+	//移除bullet
+	for (var index in this.state.bullets)
+		if (!state.bullets[index]) delete this.state.bullets[index];
 
 	var temp_me = this.state.players[this.id];
 	var authority_me;
@@ -225,7 +246,7 @@ game_core.prototype.client_onserverupdate=function(state) {
 };
 
 game_core.prototype.server_initialize = function() {
-	this.Q.gameLoop(this.update.bind(this));
+	this.Q.gameLoop(this.server_update.bind(this));
 };
 
 game_core.prototype.server_add_player = function(status) {
@@ -236,24 +257,6 @@ game_core.prototype.server_add_player = function(status) {
 	this.active = true;
 	this.player_count++;
 	console.log(status.id+' join the game.');
-};
-
-game_core.prototype.update = function(dt) {
-	if (this.isServer) {
-		if (this.active) this.server_update(dt);
-	}
-	else {
-		this.client_update(dt);
-		/*
-		if (dt>0) {
-		this.mf_total+=dt;
-		this.mf_count++;
-		if (this.mf_count%100==0) {
-			console.log('second pre frame(avg):'+this.mf_total/this.mf_count+'\nfps:'+this.mf_count/this.mf_total);
-		}
-		}
-		*/
-	}
 };
 
 game_core.prototype.client_update = function(dt) {
@@ -278,9 +281,16 @@ game_core.prototype.client_update = function(dt) {
     }
     msg.input.kb = km;
 
-    //获取鼠标输入
-    msg.input.ms = Math.atan((this.mouse_pos.y-map_height/2)/(this.mouse_pos.x-map_width/2));
-    if (this.mouse_pos.x<map_width/2) msg.input.ms+=Math.PI;
+    //获取玩家相对坐标
+    this.me = this.state.players[this.id];
+    this.mapX = Math.max( Math.min(this.me.pos.x,map_width/2),
+    					  this.me.pos.x-(global_width-map_width) );
+	this.mapY = Math.max( Math.min(this.me.pos.y,map_height/2),
+		                  this.me.pos.y-(global_height-map_height));
+
+	//获取鼠标输入
+    msg.input.ms = Math.atan((this.mouse_pos.y-this.mapY)/(this.mouse_pos.x-this.mapX));
+    if (this.mouse_pos.x<this.mapX) msg.input.ms+=Math.PI;								//反正切角度补偿
 
 
     	this.game.socket.emit('client_input',msg);										//向服务器发送操作
@@ -292,10 +302,13 @@ game_core.prototype.client_update = function(dt) {
     		this.buffer[this.seq].input=msg.input;
     		$.extend(true,this.buffer[this.seq].player,this.state.players[this.id]);	//深拷贝
 
-    		this.seq=(this.seq+1)%this.buffer_maxlength;													//循环队列，容量为200
+    		this.seq=(this.seq+1)%this.buffer_maxlength;								//环状buffer
     	}
     
-    
+    for (var index in this.state.bullets)
+    	if (!!this.state.bullets[index])
+			this.state.bullets[index].update(dt);
+		
     this.client_render();
 };
 
@@ -307,26 +320,23 @@ game_core.prototype.client_render_background = function() {
 	ctx.lineWidth=1;
 	ctx.strokeStyle = 'rgba(136,136,136,0.25)';
 
-	var stepX = 50, stepY = 50;
-	var border_r = Math.min(map_width/2,global_width-me.pos.x)+map_width/2,
-		border_d = Math.min(map_height/2,global_height-me.pos.y)+map_height/2,
-		border_l = map_width/2-Math.min(map_width/2,me.pos.x);
-		border_u = map_height/2-Math.min(map_height/2,me.pos.y);
+	var stepX = 50, stepY = 50;					//网格间距
 
-	var paddingX = (me.pos.x<map_width/2)?0:stepX-me.pos.x%stepX,
-		paddingY = (me.pos.y<map_height/2)?0:stepY-me.pos.y%stepY;
+	//核心部分，模拟网格相对世界“固定”
+	var paddingX = (me.pos.x<map_width/2 || me.pos.x>global_width-map_width/2)?0:stepX-me.pos.x%stepX,
+		paddingY = (me.pos.y<map_height/2 || me.pos.y>global_height-map_height/2)?0:stepY-me.pos.y%stepY;
 
 
-	for (var i = paddingY + border_u ;i<border_d+0.5;i+=stepY) {	//绘制横线
+	for (var i = paddingY;i<map_height;i+=stepY) {	//绘制横线
 		ctx.beginPath();
-		ctx.moveTo(border_l,i);
-		ctx.lineTo(border_r,i);
+		ctx.moveTo(0,i);
+		ctx.lineTo(map_width,i);
 		ctx.stroke();
 	}
-	for (var i = paddingX + border_l ;i<border_r+0.5;i+=stepX) {	//绘制竖线
+	for (var i = paddingX;i<map_width;i+=stepX) {	//绘制竖线
 		ctx.beginPath();
-		ctx.moveTo(i,border_u);
-		ctx.lineTo(i,border_d);
+		ctx.moveTo(i,0);
+		ctx.lineTo(i,map_height);
 		ctx.stroke();
 	}
 	ctx.restore();
@@ -334,15 +344,11 @@ game_core.prototype.client_render_background = function() {
 
 game_core.prototype.client_render_bullet = function(bullet) {
 	var ctx = this.game.ctx;
-	var r = 6;
-	var me = this.state.players[this.id];
-
-    if (Math.abs(bullet.pos.x-me.pos.x)>map_width/2 ||
-		Math.abs(bullet.pos.y-me.pos.y)>map_height/2) return;	 //超出视野
-
-
+	var r = bullet.size;
 	ctx.save();
-	ctx.translate(bullet.pos.x-me.pos.x+map_width/2,bullet.pos.y-me.pos.y+map_height/2);
+	//子弹消失动画设置
+	ctx.globalAlpha = (bullet.life.cur>bullet.life.max-0.5)?Math.max(bullet.life.max-bullet.life.cur,0)*2:1;
+	ctx.translate(bullet.pos.x-this.me.pos.x+this.mapX,bullet.pos.y-this.me.pos.y+this.mapY);
 
 	ctx.beginPath();
 	ctx.arc(0,0,r,0,2*Math.PI);							//绘制圆形轮廓
@@ -362,15 +368,11 @@ game_core.prototype.client_render_bullet = function(bullet) {
 
 game_core.prototype.client_render_player = function(player) {
 	var ctx = this.game.ctx;
-	var r = player_size;
-	var me = this.state.players[this.id];
-
-	if (Math.abs(player.pos.x-me.pos.x)>map_width/2 ||
-		Math.abs(player.pos.y-me.pos.y)>map_height/2) return;	 //超出视野
+	var r = player.size;
 
 	ctx.save();
 
-	ctx.translate(player.pos.x-me.pos.x+map_width/2,player.pos.y-me.pos.y+map_height/2);			//画布偏移至玩家中心
+	ctx.translate(player.pos.x-this.me.pos.x+this.mapX,player.pos.y-this.me.pos.y+this.mapY);			//画布偏移至玩家中心
 
 	ctx.fillStyle = 'white';
 	ctx.fillText(player.id,-r,-r-12);					//绘制id
@@ -432,7 +434,7 @@ game_core.prototype.process_inputs = function(p,inputs,dt) {
 						move_r(p,dt);
 						break;				
 					case 'j':
-						if (this.isServer) this.bullets.push(new bullet(p.pos,p.dir,p.color));
+						if (this.isServer) this.bullets.push(new bullet(p));
 						break;
 						
 				}
@@ -458,10 +460,27 @@ game_core.prototype.server_update = function(dt) {
 
 		}
 	}
-	for (var index in this.bullets) {
-		this.bullets[index].update(dt);
-		if (this.bullets[index].life.cur>this.bullets[index].life.max) delete this.bullets[index];
+	for (var index in this.bullets) 
+		if (!!this.bullets[index]) {
+			this.bullets[index].update(dt);
+			if (this.bullets[index].life.cur>this.bullets[index].life.max ||
+				this.server_bullet_check_hit(this.bullets[index])) delete this.bullets[index];
+		}
+
+};
+
+var power2 = function(a) {return a*a;};
+var dis = function(a,b) {return Math.sqrt(power2(a.x-b.x)+power2(a.y-b.y));};
+
+game_core.prototype.server_bullet_check_hit=function(bullet) {
+	for (var id in this.players) {
+		if (id != bullet.owner_id)
+		if (dis(bullet.pos,this.players[id].pos)<bullet.size+this.players[id].size) {
+			this.players[id].health.cur-=bullet.damage;
+			return true;
+		}
 	}
+	return false;
 };
 
 game_core.prototype.server_handle_inputs = function(msg) {
