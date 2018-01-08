@@ -1,4 +1,7 @@
+if( 'undefined' != typeof global )
+	var Quisus = require('./quisus.js');
 
+    var Q = Quisus();
 	var global_width = 2400,
 		global_height = 1800;
 
@@ -20,83 +23,22 @@
 	var v_n = function(a,b) {return {x: a.x*b   , y: a.y*b  }};
 
 
-var game_core = function(flag) {
-		
-        this.Q = Quisus();
-        this.isServer = flag == 'server';
 
-        if (this.isServer) {
-        	this.player_count=0;
-        	this.players=[];
-        	this.bullets=[];
-        	this.inputs=[];
-        	this.seqs=[];
-        	this.active = false;
-        	this.state={};
-        }
-        else {
-        	this.id = '';
-        	this.buffer=[];
-        	this.buffer_maxlength = 2000;
-        	this.seq=0;
-        	this.state={};
-
-
-        }
-};
-
-if( 'undefined' != typeof global ) {
-	var Quisus = require('./quisus.js');
-    module.exports = global.game_core = game_core;
-}
 
 var game_player = function(nickname) {
-	this.id = nickname;
-	this.pos={x:Math.floor(Math.random()*global_width),
-			  y:Math.floor(Math.random()*global_height)};
-	this.health = {cur:100,max:100};
-	this.speed={x:{cur:0,max:120,acc:180},y:{cur:0,max:100,acc:180}};
-	this.dir = 0;
-	this.color=0;
-	this.size = player_size;
+		this.id = nickname;
+		this.pos={x:Math.floor(Math.random()*global_width),
+			  	  y:Math.floor(Math.random()*global_height)};
+		this.health = {cur:100,max:100};
+		this.speed={x:{cur:0,max:120,acc:180},y:{cur:0,max:100,acc:180}};
+		this.dir = 0;
+		this.color=0;
+		this.size = player_size;
 
-	this.bullet_bias = 0.1;
-	this.bullet_life = 5;
-};
+		this.bullet_bias = 0.1;
+		this.bullet_life = 5;
+	};
 
-var move_u = function(p,dt) {
-	p.speed.y.cur=Math.max(p.speed.y.cur-dt*p.speed.y.acc,-p.speed.y.max);  
-};
-var move_d = function(p,dt) {
-	p.speed.y.cur=Math.min(p.speed.y.cur+dt*p.speed.y.acc,p.speed.y.max);  
-};
-var move_l = function(p,dt){
-	p.speed.x.cur=Math.max(p.speed.x.cur-dt*p.speed.x.acc,-p.speed.x.max);  
-};
-var move_r = function(p,dt){
-	p.speed.x.cur=Math.min(p.speed.x.cur+dt*p.speed.x.acc,p.speed.x.max);  
-};
-
-var update_player_physics = function(p,dt,is_no_x,is_no_y){
-	if (is_no_x) {
-		if (p.speed.x.cur>0)
-			p.speed.x.cur = Math.max(0,p.speed.x.cur-dt*p.speed.x.acc);
-		else
-			p.speed.x.cur = Math.min(0,p.speed.x.cur+dt*p.speed.x.acc);
-	}
-	if (is_no_y) {
-		if (p.speed.y.cur>0)
-			p.speed.y.cur = Math.max(0,p.speed.y.cur-dt*p.speed.y.acc);
-		else
-			p.speed.y.cur = Math.min(0,p.speed.y.cur+dt*p.speed.y.acc);
-	}
-	p.pos.x=p.pos.x+p.speed.x.cur*dt;
-	p.pos.y=p.pos.y+p.speed.y.cur*dt;
-	if (p.pos.x<0) p.pos.x=0;
-	if (p.pos.y<0) p.pos.y=0;
-	if (p.pos.x>global_width) 	p.pos.x=global_width;
-	if (p.pos.y>global_height) 	p.pos.y=global_height;
-};
 
 var bullet = function(p) {
 
@@ -111,9 +53,9 @@ var bullet = function(p) {
 	this.size = bullet_size;
 	this.damage = 10;
 	this.owner_id = p.id;
-}
+	};
 
-bullet.prototype.update = function(dt){
+bullet.prototype.update=function(dt){
 	this.pos = v_a(this.pos,v_n(this.dir,dt*this.speed));
 	if (this.pos.x<0) {
 		this.pos.x=0;
@@ -132,14 +74,81 @@ bullet.prototype.update = function(dt){
 		this.dir.y=-this.dir.y;
 	}
 	this.life.cur+=dt;
-}
+};
+
+Q.core = Q.Evented.extend({
+	move_u:function(p,dt){
+		p.speed.y.cur=Math.max(p.speed.y.cur-dt*p.speed.y.acc,-p.speed.y.max);
+	},
+	move_d:function(p,dt){
+		p.speed.y.cur=Math.min(p.speed.y.cur+dt*p.speed.y.acc,p.speed.y.max);  
+	},
+	move_l:function(p,dt){
+		p.speed.x.cur=Math.max(p.speed.x.cur-dt*p.speed.x.acc,-p.speed.x.max);  
+	},
+	move_r:function(p,dt){
+		p.speed.x.cur=Math.min(p.speed.x.cur+dt*p.speed.x.acc,p.speed.x.max);  
+	},
+
+	update_player_physics:function(p,dt,is_no_x,is_no_y){
+	if (is_no_x) {
+		if (p.speed.x.cur>0)
+			p.speed.x.cur = Math.max(0,p.speed.x.cur-dt*p.speed.x.acc);
+		else
+			p.speed.x.cur = Math.min(0,p.speed.x.cur+dt*p.speed.x.acc);
+	}
+	if (is_no_y) {
+		if (p.speed.y.cur>0)
+			p.speed.y.cur = Math.max(0,p.speed.y.cur-dt*p.speed.y.acc);
+		else
+			p.speed.y.cur = Math.min(0,p.speed.y.cur+dt*p.speed.y.acc);
+	}
+	p.pos.x=p.pos.x+p.speed.x.cur*dt;
+	p.pos.y=p.pos.y+p.speed.y.cur*dt;
+	if (p.pos.x<0) p.pos.x=0;
+	if (p.pos.y<0) p.pos.y=0;
+	if (p.pos.x>global_width) 	p.pos.x=global_width;
+	if (p.pos.y>global_height) 	p.pos.y=global_height;
+	},
+
+	process_inputs:function(p,inputs,dt,isServer) {
+
+	for (var i=0;i<inputs.kb.length;i++) {
+				switch (inputs.kb[i]) {
+					case 'w':
+						this.move_u(p,dt);
+						break;
+					case 's':
+						this.move_d(p,dt);
+						break;
+					case 'a':
+						this.move_l(p,dt);
+						break;
+					case 'd':
+						this.move_r(p,dt);
+						break;									
+				}
+			}
+	this.update_player_physics(p,dt,(inputs.kb.indexOf('a')<0 && inputs.kb.indexOf('d')<0),
+							   (inputs.kb.indexOf('w')<0 && inputs.kb.indexOf('s')<0));
+	p.dir = inputs.ms;
+	}
+});
 
 
-game_core.prototype.client_initialize = function(enviroment) {
+Q.client_core = Q.core.extend({
+	init:function() {
+        	this.id = '';
+        	this.buffer=[];
+        	this.buffer_maxlength = 2000;
+        	this.seq=0;
+        	this.state={};
+	},
+
+	client_initialize:function(enviroment) {
 	this.is_client_predict= true;
 	this.mf_total=0;
     this.mf_count=0;
-
 
 	this.game = {
 		socket:enviroment.socket,
@@ -195,9 +204,10 @@ game_core.prototype.client_initialize = function(enviroment) {
 							          y:this.state.players[this.id].pos.y}});	//向服务器发送id，颜色和出生位置
 
 	this.game.socket.on('on_server_update',this.client_onserverupdate.bind(this));	//接受服务器端游戏状态并无条件更新
-	this.Q.gameLoop(this.client_update.bind(this));
-};
-game_core.prototype.client_onserverupdate=function(state) {
+	Q.gameLoop(this.client_update.bind(this));
+	},
+
+	client_onserverupdate:function(state) {
 	//新增bullet
 	for (var index in state.bullets)
 		if (!this.state.bullets[index] && !!state.bullets[index]) {
@@ -238,28 +248,14 @@ game_core.prototype.client_onserverupdate=function(state) {
 
 		//client replay
 		for (var i=head+1;i!=this.seq;i=(i+1)%this.buffer_maxlength) {
-			this.process_inputs(this.state.players[this.id],this.buffer[i].input,0.0166689);
+			this.process_inputs(this.state.players[this.id],this.buffer[i].input,0.0166689,false);
 			this.buffer[i].player={};
 			$.extend(true,this.buffer[i].player,this.state.players[this.id]);
 		}
 	}
-};
+	},
 
-game_core.prototype.server_initialize = function() {
-	this.Q.gameLoop(this.server_update.bind(this));
-};
-
-game_core.prototype.server_add_player = function(status) {
-	this.players[status.id]=new game_player(status.id);
-	this.players[status.id].color = status.color;
-	this.players[status.id].pos = status.pos;
-	this.inputs[status.id]=[];
-	this.active = true;
-	this.player_count++;
-	console.log(status.id+' join the game.');
-};
-
-game_core.prototype.client_update = function(dt) {
+	client_update:function(dt) {
 	var msg = {
 		input:{kb:'',ms:0},
 		id:this.id,
@@ -295,8 +291,7 @@ game_core.prototype.client_update = function(dt) {
 
     	this.game.socket.emit('client_input',msg);										//向服务器发送操作
     	if (this.is_client_predict) {
-    		this.process_inputs(this.state.players[this.id],msg.input,dt);				//客户端立即更新状态
-
+    		this.process_inputs(this.state.players[this.id],msg.input,dt,false);				//客户端立即更新状态
     		this.buffer[this.seq]={};
     		this.buffer[this.seq].player={};
     		this.buffer[this.seq].input=msg.input;
@@ -310,9 +305,9 @@ game_core.prototype.client_update = function(dt) {
 			this.state.bullets[index].update(dt);
 		
     this.client_render();
-};
+	},
 
-game_core.prototype.client_render_background = function() {
+	client_render_background:function() {
 	var ctx = this.game.ctx;
 	var me = this.state.players[this.id];
 
@@ -340,9 +335,9 @@ game_core.prototype.client_render_background = function() {
 		ctx.stroke();
 	}
 	ctx.restore();
-};
+	},
 
-game_core.prototype.client_render_bullet = function(bullet) {
+	client_render_bullet:function(bullet) {
 	var ctx = this.game.ctx;
 	var r = bullet.size;
 	ctx.save();
@@ -364,9 +359,9 @@ game_core.prototype.client_render_bullet = function(bullet) {
 	ctx.fill();
 	ctx.closePath();
 	ctx.restore();
-};
+	},
 
-game_core.prototype.client_render_player = function(player) {
+	client_render_player:function(player) {
 	var ctx = this.game.ctx;
 	var r = player.size;
 
@@ -402,9 +397,9 @@ game_core.prototype.client_render_player = function(player) {
 
 
 	ctx.restore();
-};
+	},
 
-game_core.prototype.client_render = function() {
+	client_render:function() {
 	this.game.ctx.clearRect(0,0,map_width,map_height);
 
 	this.client_render_background();
@@ -415,44 +410,44 @@ game_core.prototype.client_render = function() {
 		if (this.state.bullets[index]!=undefined)
 		this.client_render_bullet(this.state.bullets[index]);
 	}
-};
+	}
+});
 
-game_core.prototype.process_inputs = function(p,inputs,dt) {
+Q.server_core = Q.core.extend({
+	init:function() {
+	        this.player_count=0;
+        	this.players=[];
+        	this.bullets=[];
+        	this.inputs=[];
+        	this.seqs=[];
+        	this.active = false;
+        	this.state={};
+    },
 
-	for (var i=0;i<inputs.kb.length;i++) {
-				switch (inputs.kb[i]) {
-					case 'w':
-						move_u(p,dt);
-						break;
-					case 's':
-						move_d(p,dt);
-						break;
-					case 'a':
-						move_l(p,dt);
-						break;
-					case 'd':
-						move_r(p,dt);
-						break;				
-					case 'j':
-						if (this.isServer) this.bullets.push(new bullet(p));
-						break;
-						
-				}
-			}
-	update_player_physics(p,dt,(inputs.kb.indexOf('a')<0 && inputs.kb.indexOf('d')<0),
-							   (inputs.kb.indexOf('w')<0 && inputs.kb.indexOf('s')<0));
-	p.dir = inputs.ms;
-	
-};
+	server_initialize:function() {
+		Q.gameLoop(this.server_update.bind(this));
+	},
 
-game_core.prototype.server_update = function(dt) {
+	server_add_player:function(status) {
+		this.players[status.id]=new game_player(status.id);
+		this.players[status.id].color = status.color;
+		this.players[status.id].pos = status.pos;
+		this.inputs[status.id]=[];
+		this.active = true;
+		this.player_count++;
+		console.log(status.id+' join the game.');
+	},
+
+	server_update:function(dt) {
 	for (var id in this.players) {
 		if (this.inputs[id]!=undefined) {
 
 			for (var unit_index in this.inputs[id]) {
 				var msg=this.inputs[id][unit_index];
 
-				this.process_inputs( this.players[id] , msg.input , dt );
+				this.process_inputs( this.players[id] , msg.input , dt ,true);
+				if (msg.input.kb.indexOf('j')!=-1) this.bullets.push(new bullet(this.players[id]));
+
 				this.seqs[id]=msg.seq;
 
 			}
@@ -467,28 +462,26 @@ game_core.prototype.server_update = function(dt) {
 				this.server_bullet_check_hit(this.bullets[index])) delete this.bullets[index];
 		}
 
-};
+	},
 
-var power2 = function(a) {return a*a;};
-var dis = function(a,b) {return Math.sqrt(power2(a.x-b.x)+power2(a.y-b.y));};
-
-game_core.prototype.server_bullet_check_hit=function(bullet) {
+	server_bullet_check_hit:function(bullet) {
 	for (var id in this.players) {
 		if (id != bullet.owner_id)
 		if (dis(bullet.pos,this.players[id].pos)<bullet.size+this.players[id].size) {
 			this.players[id].health.cur-=bullet.damage;
+			if (this.player[id].health.cur<=0) this.server_remove_player(id);
 			return true;
 		}
 	}
 	return false;
-};
+	},
 
-game_core.prototype.server_handle_inputs = function(msg) {
-	if (this.inputs[msg.id]!=undefined)
+	server_handle_inputs:function(msg) {
+		if (this.inputs[msg.id]!=undefined)
 			this.inputs[msg.id].push(msg);
-};
+	},
 
-game_core.prototype.server_snapshot = function() {
+	server_snapshot:function() {
 	var state = {
 		players:[],
 		bullets:this.bullets,
@@ -503,9 +496,9 @@ game_core.prototype.server_snapshot = function() {
 	}
 	this.seqs=[];
 	return state;
-};
+	},
 
-game_core.prototype.server_remove_player = function(id) {
+	server_remove_player:function(id) {
 	console.log(id + ' leaves the game');
 	delete this.players[id];
 	delete this.inputs[id];
@@ -514,8 +507,11 @@ game_core.prototype.server_remove_player = function(id) {
 		this.active = false;		//没有玩家连接时服务器不再更新
 		console.log('nobody is in the game. server deactivated.');
 	}
-}
+	}
 
+});
+var power2=function(a) {return a*a;};
+var dis=function(a,b) {return Math.sqrt(power2(a.x-b.x)+power2(a.y-b.y));};
 var player_cmp = function( x, y ) {  
 
     var isNumber = function(x) {return (typeof x =='number');};
@@ -554,4 +550,5 @@ var player_cmp = function( x, y ) {
         }  
         return true;  
     }; 
-
+if( 'undefined' != typeof global )
+   module.exports = global.Q = Q;

@@ -23,8 +23,8 @@
 
 		<script src="core.js"></script>
 		<script>
-				var core = new game_core('client');
             	$("#loginBtn").click(function(){
+            		core = new Q.client_core();
                 	var nickname = String(($("#clientNameText").val())||'unknown');         		
             		$("#login").addClass("hidden-div");
             		$("#game").removeClass("hidden-div");
