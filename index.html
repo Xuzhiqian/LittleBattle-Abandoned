@@ -1,47 +1,47 @@
 <!DOCTYPE html>
 <html>
-	<head>
+<head>
 
-		<title>Little Battle</title>
-		<link href="index.css" media="screen" rel="stylesheet" type="text/css">
+    <title>Little Battle</title>
+    <link href="index.css" media="screen" rel="stylesheet" type="text/css">
 
-		<script src="/socket.io/socket.io.js"></script>
-		<script src="http://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
-		<script src="keyboard.js"></script>
-		<script src="quisus.js"></script>
-	</head>
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="http://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+    <script src="keyboard.js"></script>
+    <script src="quisus.js"></script>
+</head>
 
-	<body>
-            <div id="login">
-                Your nickname:<br/>
-                <input type="text" id="clientNameText">
-                <button id="loginBtn">connect</button>
-            </div>
-            <div id="game" class="hidden-div">
-				<canvas id="map"></canvas>
-            </div>
-        <script>core = {};</script>
-		<script src="core.js"></script>
-		<script src="cilent.js"></script>
-		<script>
-            	$("#loginBtn").click(function(){
-            		core = {};
-            		core = new Q.client_core();
-                	var nickname = String(($("#clientNameText").val())||'unknown');         		
-            		$("#login").addClass("hidden-div");
-            		$("#game").removeClass("hidden-div");
-					var enviroment = {
-    					socket : io.connect(),
-    					keyboard : new THREEx.KeyboardState(),
-    					map : document.getElementById('map'),
-    					ctx : map.getContext('2d')
-					}
-					enviroment.socket.client_id=nickname;
+<body>
+<div id="login">
+    Your nickname:<br/>
+    <input type="text" id="clientNameText">
+    <button id="loginBtn">connect</button>
+</div>
+<div id="game" class="hidden-div">
+    <canvas id="map"></canvas>
+</div>
+<script>core = {};</script>
+<script src="core.js"></script>
+<script src="cilent.js"></script>
+<script>
+	$("#loginBtn").click(function () {
+		core = {};
+		core = new Q.client_core();
+		var nickname = String(($("#clientNameText").val()) || 'unknown');
+		$("#login").addClass("hidden-div");
+		$("#game").removeClass("hidden-div");
+		var enviroment = {
+			socket: io.connect(),
+			keyboard: new THREEx.KeyboardState(),
+			map: document.getElementById('map'),
+			ctx: map.getContext('2d')
+		}
+		enviroment.socket.client_id = nickname;
 
-					core.client_initialize(enviroment);
-            	});
-		</script>
-		
+		core.client_initialize(enviroment);
+	});
+</script>
 
-	</body>
+
+</body>
 </html>
