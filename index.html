@@ -20,10 +20,12 @@
             <div id="game" class="hidden-div">
 				<canvas id="map"></canvas>
             </div>
-
+        <script>core = {};</script>
 		<script src="core.js"></script>
+		<script src="cilent.js"></script>
 		<script>
             	$("#loginBtn").click(function(){
+            		core = {};
             		core = new Q.client_core();
                 	var nickname = String(($("#clientNameText").val())||'unknown');         		
             		$("#login").addClass("hidden-div");
@@ -35,7 +37,6 @@
     					ctx : map.getContext('2d')
 					}
 					enviroment.socket.client_id=nickname;
-					enviroment.ctx.font = '15px "Helvetica"'
 
 					core.client_initialize(enviroment);
             	});

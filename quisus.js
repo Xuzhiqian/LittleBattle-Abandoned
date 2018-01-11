@@ -150,7 +150,7 @@ var Quisus = function() {
         target = null;
       }
       // Handle case for callback that is a string
-      if(_.isString(callback)) {
+      if(typeof callback=='string') {
         callback = target[callback];
       }
 
