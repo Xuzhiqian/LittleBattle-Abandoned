@@ -112,6 +112,8 @@ Q.server_core = Q.core.extend({
 		this.player_count--;
 		if (this.player_count <= 0) {
 			this.active = false;		//没有玩家连接时服务器不再更新
+			this.names=[];
+			this.bullets=[];
 			console.log('nobody is in the game. server deactivated.');
 		}
 	}

@@ -25,20 +25,28 @@
 <script src="client.js"></script>
 <script>
 	$("#loginBtn").click(function () {
-		core = {};
-		core = new Q.client_core();
-		var nickname = String(($("#clientNameText").val()) || 'unknown');
-		$("#login").addClass("hidden-div");
-		$("#game").removeClass("hidden-div");
-		var enviroment = {
-			socket: io.connect(),
-			keyboard: new THREEx.KeyboardState(),
-			map: document.getElementById('map'),
-			ctx: map.getContext('2d')
-		}
-		enviroment.socket.client_id = nickname;
 
-		core.client_initialize(enviroment);
+		var nickname = String(($("#clientNameText").val()) || 'unknown');
+		if (nickname.indexOf('#')!=-1) {alert("No '#' in your nickname!"); return;}
+
+		core = new Q.client_core();
+		var socket = io.connect();
+		socket.emit('id_checkdup',nickname);
+
+		core.bind('verified',(function(newname){
+			$("#login").addClass("hidden-div");
+			$("#game").removeClass("hidden-div");
+			var enviroment = {
+				socket: socket,
+				keyboard: new THREEx.KeyboardState(),
+				map: document.getElementById('map'),
+				ctx: map.getContext('2d')
+			}
+			enviroment.socket.client_id = newname;
+			core.client_initialize(enviroment);
+		}).bind(this));
+
+		socket.on('verified',function(id){core.trigger('verified',id);});
 	});
 </script>
 

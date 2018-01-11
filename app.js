@@ -15,10 +15,12 @@ app.get('/*', function (req, res, next) {
 });
 
 
+
 require("./core.js");
 require("./server.js");
 var core = new Q.server_core();
 core.server_initialize();
+core.names=[];
 
 core.id_sendstate = setInterval(function () {
 	if (core.active)
@@ -39,9 +41,19 @@ core.bind('player_gameover', function (pkid) {
 
 io.on("connection", function (socket) {
 	
-	socket.on("join", function (status) {
-		core.server_add_player(status);
+	socket.on('id_checkdup',function(id){
+		if (core.names[id]==undefined)
+			core.names[id]=1;
+		else {
+			core.names[id]+=1;
+			id=id+'#'+core.names[id];
+		}
+		socket.emit('verified',id);
+	});
+
+	socket.on('join', function (status) {
 		socket.client_id = status.id;
+		core.server_add_player(status);
 		io.emit('new_player', {id: status.id, count: core.player_count});
 	});
 	
