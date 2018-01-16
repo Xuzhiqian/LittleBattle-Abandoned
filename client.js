@@ -218,11 +218,8 @@ Q.client_core = Q.core.extend({
 			if (!!this.state.bullets[index]) {
 				var b = this.state.bullets[index];
 				b.update(dt);
-				if (b.life.cur > b.life.max ||
-					(b.pos.x<0 || b.pos.y<0	||
-					b.pos.x>this.global_width ||
-					b.pos.y>this.global_height)&&(!b.bounce))
-						delete this.state.bullets[index];
+				if (b.destroy==true)
+					delete b;
 			}
 		
 
@@ -258,13 +255,15 @@ Q.client_core = Q.core.extend({
 		}
 		ctx.closePath();
 
-		for (var i = paddingY - this.block_height; i < map_height; i += this.block_height) {
-		block_y = Math.floor((this.me.pos.y - this.mapY + i) / this.block_height);
-			for (var j = paddingX - this.block_width; j < map_width; j += this.block_width) {
-				block_x = Math.floor((this.me.pos.x - this.mapX + j) / this.block_width);
-				if (this.terrain[block_y]!=undefined) 
-				if (this.terrain[block_y][block_x]!=undefined)
-				if (this.terrain[block_y][block_x]==1) {
+
+		for (var i = paddingX - this.block_width; i < map_width; i += this.block_width) {
+			block_x = Math.floor((this.me.pos.x - this.mapX + i) / this.block_width);
+			for (var j = paddingY - this.block_height; j < map_height; j += this.block_height) {
+				block_y = Math.floor((this.me.pos.y - this.mapY + j) / this.block_height);
+			
+				if (this.terrain[block_x]!=undefined) 
+				if (this.terrain[block_x][block_y]!=undefined)
+				if (this.terrain[block_x][block_y]==1) {
 					ctx.fillStyle = 'rgb(136,136,136)';
 					ctx.fillRect(block_x*this.block_width-this.me.pos.x+this.mapX,
 								 block_y*this.block_height-this.me.pos.y+this.mapY,

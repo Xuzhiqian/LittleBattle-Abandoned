@@ -44,9 +44,9 @@ Q.server_core = Q.core.extend({
 
 		//地形随机化
 		this.terrain=[]
-  		for (var i=0;i<h;i++) {
+  		for (var i=-1;i<=w+1;i++) {
     		this.terrain[i]=[];
-    		for (var j=0;j<w;j++)
+    		for (var j=-1;j<=h+1;j++)
       			this.terrain[i][j]=Math.random()<0.432?1:0;
       	}
 
@@ -64,9 +64,9 @@ Q.server_core = Q.core.extend({
     	//10次迭代演算
     	for (var dd=0;dd<10;dd++) {
     		var _terrain=[];
-    		for (var i=0;i<h;i++) {
+    		for (var i=-1;i<=w+1;i++) {
       			_terrain[i]=[];
-      			for (var j=0;j<w;j++) {
+      			for (var j=-1;j<=h+1;j++) {
         			if (count(this.terrain,i,j)>=5)
           				_terrain[i][j]=1;
         			else
@@ -108,9 +108,10 @@ Q.server_core = Q.core.extend({
 		}
 		for (var index in this.bullets)
 			if (!!this.bullets[index]) {
-				this.bullets[index].update(dt);
-				if (this.bullets[index].life.cur > this.bullets[index].life.max ||
-					this.server_bullet_check_hit(this.bullets[index])) this.server_delete_bullet(index);
+				var b = this.bullets[index];
+				b.update(dt);
+				this.server_bullet_check_hit(b);
+				if (b.destroy==true) this.server_delete_bullet(index);
 				
 			}
 		
@@ -125,10 +126,9 @@ Q.server_core = Q.core.extend({
 						this.server_remove_player(id);
 						this.trigger('player_gameover', {pid: id, kid: bullet.owner_id});
 					}
-					return true;
+					bullet.destroy = true;
 				}
 		}
-		return false;
 	},
 	
 	server_handle_inputs: function (msg) {

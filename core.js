@@ -91,31 +91,32 @@ Q.bullet = function (p) {
 	this.size = bullet_size;
 	this.damage = 10;
 	this.owner_id = p.id;
+
+	this.destroy = false;
 };
 
 Q.bullet.prototype.update = function (dt) {
 	this.pos = v_a(this.pos, v_n(this.dir, dt * this.speed));
 	if (this.bounce) {
 	if (this.pos.x < 0) {
-		this.pos.x = 0;
 		this.dir.x = -this.dir.x;
 	}
 	if (this.pos.y < 0) {
-		this.pos.y = 0;
 		this.dir.y = -this.dir.y;
 	}
 	if (this.pos.x > global_width) {
-		this.pos.x = global_width;
 		this.dir.x = -this.dir.x;
 	}
 	if (this.pos.y > global_height) {
-		this.pos.y = global_height;
 		this.dir.y = -this.dir.y;
 	}
 	}
+
 	this.life.cur += dt;
+	if (this.life.cur>this.life.max) this.destroy=true;
 };
 
+var sur = [[-1,0],[0,-1],[0,1],[1,0],[-1,-1],[-1,1],[1,-1],[1,1]];
 Q.core = Q.Evented.extend({
 	global_width:global_width,
 	global_height:global_height,
@@ -138,6 +139,7 @@ Q.core = Q.Evented.extend({
 	
 	update_player_physics: function (p, dt, is_no_x, is_no_y) {
 		
+		
 		if (is_no_x) {
 			if (p.speed.x.cur > 0)
 				p.speed.x.cur = Math.max(0, p.speed.x.cur - dt * p.speed.x.acc);
@@ -150,9 +152,20 @@ Q.core = Q.Evented.extend({
 			else
 				p.speed.y.cur = Math.min(0, p.speed.y.cur + dt * p.speed.y.acc);
 		}
+
+		//地形碰撞检测
+		block_x = Math.floor(p.pos.x / this.block_width);
+		block_y = Math.floor(p.pos.y / this.block_height);
+		for (var i=0;i<4;i++)
+		if (this.terrain[block_x+sur[i][0]][block_y+sur[i][1]]==1) {
+			if (sur[i][0]*p.speed.x.cur>0) p.speed.x.cur = 0;
+			if (sur[i][1]*p.speed.y.cur>0) p.speed.y.cur = 0;
+		}
+
 		p.pos.x = p.pos.x + p.speed.x.cur * dt;
 		p.pos.y = p.pos.y + p.speed.y.cur * dt;
-		
+
+		//越界检测
 		if (p.pos.x < 0) p.pos.x = 0;
 		if (p.pos.y < 0) p.pos.y = 0;
 		if (p.pos.x > this.global_width) p.pos.x = this.global_width;
@@ -160,7 +173,7 @@ Q.core = Q.Evented.extend({
 	},
 	
 	process_inputs: function (p, inputs, dt) {
-		
+
 		for (var i = 0; i < inputs.kb.length; i++) {
 			switch (inputs.kb[i]) {
 				case 'w':
@@ -179,6 +192,7 @@ Q.core = Q.Evented.extend({
 		}
 		this.update_player_physics(p, dt, (inputs.kb.indexOf('a') < 0 && inputs.kb.indexOf('d') < 0),
 			(inputs.kb.indexOf('w') < 0 && inputs.kb.indexOf('s') < 0));
+		
 		p.dir = inputs.ms;
 	}
 });
