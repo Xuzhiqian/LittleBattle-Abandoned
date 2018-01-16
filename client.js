@@ -164,6 +164,15 @@ Q.client_core = Q.core.extend({
 			}
 	},
 	
+	//提取自身以及相对于画布的坐标
+	client_getme: function() {
+		this.me = this.state.players[this.id];
+		this.mapX = Math.max(Math.min(this.me.pos.x, map_width / 2),
+			this.me.pos.x - (this.global_width - map_width));
+		this.mapY = Math.max(Math.min(this.me.pos.y, map_height / 2),
+			this.me.pos.y - (this.global_height - map_height));
+	},
+
 	client_update: function (dt) {
 		var msg = {
 			input: {kb: '', ms: 0},
@@ -189,11 +198,7 @@ Q.client_core = Q.core.extend({
 		msg.input.kb = km;
 		
 		//获取玩家相对坐标
-		this.me = this.state.players[this.id];
-		this.mapX = Math.max(Math.min(this.me.pos.x, map_width / 2),
-			this.me.pos.x - (this.global_width - map_width));
-		this.mapY = Math.max(Math.min(this.me.pos.y, map_height / 2),
-			this.me.pos.y - (this.global_height - map_height));
+		this.client_getme();
 		
 		//获取鼠标输入
 		msg.input.ms = Math.atan((this.mouse_pos.y - this.mapY) / (this.mouse_pos.x - this.mapX));
@@ -220,6 +225,8 @@ Q.client_core = Q.core.extend({
 						delete this.state.bullets[index];
 			}
 		
+
+		this.client_getme();	//更新处理完毕后的位置
 		this.client_render();
 	},
 	
@@ -241,25 +248,29 @@ Q.client_core = Q.core.extend({
 			ctx.moveTo(0, i);
 			ctx.lineTo(map_width, i);
 			ctx.stroke();
-
-			/*
-			block_y = Math.floor((this.me.pos.y - this.mapY + i) / this.block_height);
-			for (var xx = paddingX; xx < map_width; xx += this.block_width) {
-				block_x = Math.floor((this.me.pos.x - this.mapX + xx) / this.block_width);
-				if (this.terrain[block_y][block_x]==1) {
-					ctx.fillStyle = 'rgb(136,136,136)';
-					ctx.fillRect(block_x*this.block_width-this.me.pos.x+this.mapX,
-								 block_y*this.block_height-this.me.pos.y+this.mapY,
-								 this.block_width,this.block_height);
-				}
-			}
-			*/
+			
 		}
 		for (var i = paddingX; i < map_width; i += this.block_width) {	//绘制竖线
 			ctx.beginPath();
 			ctx.moveTo(i, 0);
 			ctx.lineTo(i, map_height);
 			ctx.stroke();
+		}
+		ctx.closePath();
+
+		for (var i = paddingY - this.block_height; i < map_height; i += this.block_height) {
+		block_y = Math.floor((this.me.pos.y - this.mapY + i) / this.block_height);
+			for (var j = paddingX - this.block_width; j < map_width; j += this.block_width) {
+				block_x = Math.floor((this.me.pos.x - this.mapX + j) / this.block_width);
+				if (this.terrain[block_y]!=undefined) 
+				if (this.terrain[block_y][block_x]!=undefined)
+				if (this.terrain[block_y][block_x]==1) {
+					ctx.fillStyle = 'rgb(136,136,136)';
+					ctx.fillRect(block_x*this.block_width-this.me.pos.x+this.mapX,
+								 block_y*this.block_height-this.me.pos.y+this.mapY,
+								 this.block_width+1,this.block_height+1);
+				}
+			}
 		}
 		ctx.restore();
 	},

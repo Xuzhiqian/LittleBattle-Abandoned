@@ -137,6 +137,7 @@ Q.core = Q.Evented.extend({
 	},
 	
 	update_player_physics: function (p, dt, is_no_x, is_no_y) {
+		
 		if (is_no_x) {
 			if (p.speed.x.cur > 0)
 				p.speed.x.cur = Math.max(0, p.speed.x.cur - dt * p.speed.x.acc);
@@ -151,6 +152,7 @@ Q.core = Q.Evented.extend({
 		}
 		p.pos.x = p.pos.x + p.speed.x.cur * dt;
 		p.pos.y = p.pos.y + p.speed.y.cur * dt;
+		
 		if (p.pos.x < 0) p.pos.x = 0;
 		if (p.pos.y < 0) p.pos.y = 0;
 		if (p.pos.x > this.global_width) p.pos.x = this.global_width;

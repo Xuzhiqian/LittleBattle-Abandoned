@@ -64,7 +64,7 @@ Q.server_core = Q.core.extend({
     	//10次迭代演算
     	for (var dd=0;dd<10;dd++) {
     		var _terrain=[];
-    		for (var i=0;i<w;i++) {
+    		for (var i=0;i<h;i++) {
       			_terrain[i]=[];
       			for (var j=0;j<w;j++) {
         			if (count(this.terrain,i,j)>=5)
