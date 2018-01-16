@@ -1,27 +1,18 @@
-if ('undefined' != typeof global)
+if ('undefined' != typeof global) {
 	var Quisus = require('./quisus.js');
+}
 
 var Q = Quisus();
+
 var global_width = 2400,
 	global_height = 1800;
 
-var map_width = 800;
-var map_height = 600;
-
-var player_size = 15;
-var bullet_size = 5;
-
-var color_table = ['super', 'aqua', 'Aquamarine', 'Chartreuse', 'Coral', 'LightCyan', 'LightSlateBlue', 'RoyalBlue', 'Violet', 'VioletRed', 'Purple', 'orange']
-var color_table_length = color_table.length;
-
-var delta_degree = 2 * 3.1415926 / 360 * 100;
-
-var v_a = function (a, b) {
-	return {x: a.x + b.x, y: a.y + b.y}
-};
-var v_n = function (a, b) {
-	return {x: a.x * b, y: a.y * b}
-};
+var v_a=function (a, b) {
+		return {x: a.x + b.x, y: a.y + b.y}
+	},
+	v_n=function (a, b) {
+		return {x: a.x * b, y: a.y * b}
+	};
 
 var player_cmp = function (x, y) {
 	var isNumber = function (x) {
@@ -53,7 +44,7 @@ var player_cmp = function (x, y) {
 			if ((isNumber(x[p]) && !isNumber(y[p])) || (!isNumber(x[p]) && isNumber(y[p])))
 				return false;
 			else if (isNumber(x[p]))
-				if (Math.abs(x[p] - y[p]) > 0.01)
+				if (Math.abs(x[p] - y[p]) > 0.1)
 					return false;
 				else continue;
 			
@@ -67,7 +58,7 @@ var player_cmp = function (x, y) {
 	return true;
 };
 
-
+var player_size = 15;
 Q.game_player = function (nickname) {
 	this.id = nickname;
 	this.pos = {
@@ -84,7 +75,7 @@ Q.game_player = function (nickname) {
 	this.bullet_life = 5;
 };
 
-
+var bullet_size = 5;
 Q.bullet = function (p) {
 	
 	this.pos = {x: p.pos.x, y: p.pos.y};
@@ -94,6 +85,8 @@ Q.bullet = function (p) {
 	var b = p.bullet_bias;
 	var start_dir = p.dir + Math.PI / 2 * (Math.random() * 2 * b - b);	//弹道偏移
 	this.dir = {x: Math.cos(start_dir), y: Math.sin(start_dir)};
+
+	this.bounce = false;
 	this.color = p.color;
 	this.size = bullet_size;
 	this.damage = 10;
@@ -102,6 +95,7 @@ Q.bullet = function (p) {
 
 Q.bullet.prototype.update = function (dt) {
 	this.pos = v_a(this.pos, v_n(this.dir, dt * this.speed));
+	if (this.bounce) {
 	if (this.pos.x < 0) {
 		this.pos.x = 0;
 		this.dir.x = -this.dir.x;
@@ -118,10 +112,17 @@ Q.bullet.prototype.update = function (dt) {
 		this.pos.y = global_height;
 		this.dir.y = -this.dir.y;
 	}
+	}
 	this.life.cur += dt;
 };
 
 Q.core = Q.Evented.extend({
+	global_width:global_width,
+	global_height:global_height,
+
+	block_width:20,
+	block_height:20,
+
 	move_u: function (p, dt) {
 		p.speed.y.cur = Math.max(p.speed.y.cur - dt * p.speed.y.acc, -p.speed.y.max);
 	},
@@ -152,11 +153,11 @@ Q.core = Q.Evented.extend({
 		p.pos.y = p.pos.y + p.speed.y.cur * dt;
 		if (p.pos.x < 0) p.pos.x = 0;
 		if (p.pos.y < 0) p.pos.y = 0;
-		if (p.pos.x > global_width) p.pos.x = global_width;
-		if (p.pos.y > global_height) p.pos.y = global_height;
+		if (p.pos.x > this.global_width) p.pos.x = this.global_width;
+		if (p.pos.y > this.global_height) p.pos.y = this.global_height;
 	},
 	
-	process_inputs: function (p, inputs, dt, isServer) {
+	process_inputs: function (p, inputs, dt) {
 		
 		for (var i = 0; i < inputs.kb.length; i++) {
 			switch (inputs.kb[i]) {

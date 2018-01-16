@@ -1,3 +1,5 @@
+require("./core.js");
+
 var power2 = function (a) {
 	return a * a;
 };
@@ -10,6 +12,7 @@ Q.server_core = Q.core.extend({
 		this.player_count = 0;
 		this.players = [];
 		this.bullets = [];
+		this.terrain = [];
 		this.inputs = [];
 		this.seqs = [];
 		this.active = false;
@@ -24,11 +27,56 @@ Q.server_core = Q.core.extend({
 		this.players[status.id].color = status.color;
 		this.players[status.id].pos = status.pos;
 		this.inputs[status.id] = [];
-		this.active = true;
 		this.player_count++;
 		console.log(status.id + ' joins the game.');
+
+		if (this.active==false) {
+			this.active=true;
+			this.server_generate_terrain();
+		}
 	},
 	
+	//经过精心调参后比较美观的随机地形生成器，其中初始覆盖率=0.432，地形迭代生存指数=5，迭代次数=10
+	//参考元胞自动机
+	server_generate_terrain: function() {
+		var w = this.global_width / this.block_width;
+		var h = this.global_height / this.block_height;
+
+		//地形随机化
+		this.terrain=[]
+  		for (var i=0;i<h;i++) {
+    		this.terrain[i]=[];
+    		for (var j=0;j<w;j++)
+      			this.terrain[i][j]=Math.random()<0.432?1:0;
+      	}
+
+      	//地形周围单元计数
+      	var count=function(t,x,y) {
+      		var c=0;
+      		for (var i=x-1;i<=x+1;i++)
+        		for (var j=y-1;j<=y+1;j++)
+          			if (t[i]!=undefined)
+            			if (t[i][j]!=undefined)
+              				if (t[i][j]==1)	c++;
+      		return c;
+    	};
+
+    	//10次迭代演算
+    	for (var dd=0;dd<10;dd++) {
+    		var _terrain=[];
+    		for (var i=0;i<w;i++) {
+      			_terrain[i]=[];
+      			for (var j=0;j<w;j++) {
+        			if (count(this.terrain,i,j)>=5)
+          				_terrain[i][j]=1;
+        			else
+          			_terrain[i][j]=0;
+      			}
+    		}
+    		this.terrain=_terrain;
+		};
+	},
+
 	server_new_bullet: function (player) {
 		var new_bullet = new Q.bullet(player);
 		var index = this.bullets.push(new_bullet) - 1;
@@ -47,7 +95,7 @@ Q.server_core = Q.core.extend({
 				for (var unit_index in this.inputs[id]) {
 					var msg = this.inputs[id][unit_index];
 					
-					this.process_inputs(this.players[id], msg.input, dt, true);
+					this.process_inputs(this.players[id], msg.input, dt);
 					if (msg.input.kb.indexOf('j') != -1)
 						this.server_new_bullet(this.players[id]);
 					

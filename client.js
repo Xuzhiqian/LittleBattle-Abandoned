@@ -1,3 +1,13 @@
+var 
+	map_width=800,
+	map_height=600,
+
+
+	delta_degree=2 * 3.1415926 / 360 * 100,
+
+	color_table = ['super', 'aqua', 'Aquamarine', 'Chartreuse', 'Coral', 'LightCyan', 'LightSlateBlue', 'RoyalBlue', 'Violet', 'VioletRed', 'Purple', 'orange'],
+	color_table_length = color_table.length;
+
 Q.client_core = Q.core.extend({
 	init: function () {
 		this.id = '';
@@ -13,6 +23,7 @@ Q.client_core = Q.core.extend({
 				this.tail = (this.tail + 1) % this.length;
 			}
 		};
+		this.terrain=[];
 	},
 	
 	client_initialize: function (enviroment) {
@@ -78,9 +89,11 @@ Q.client_core = Q.core.extend({
 			}
 		});	//向服务器发送id，颜色和出生位置
 		
+
 		this.game.socket.on('on_server_update', this.client_onserverupdate.bind(this));	//接受服务器端游戏状态并无条件更新
 		this.game.socket.on('new_bullet', this.client_getnewbullet.bind(this));		//接受新的子弹
 		this.game.socket.on('delete_bullet', this.client_deletebullet.bind(this));	//删除子弹
+		this.game.socket.on('init_terrain', this.client_getterrain.bind(this));
 		this.game.socket.on('player_gameover', this.client_gameover.bind(this));		//玩家死亡
 		this.game.socket.on('new_player', this.client_newplayerjoin.bind(this));
 		this.game.socket.on('player_disconnect', this.client_playerdisconnect.bind(this));
@@ -107,6 +120,10 @@ Q.client_core = Q.core.extend({
 	
 	client_deletebullet: function (index) {
 		delete this.state.bullets[index];
+	},
+
+	client_getterrain: function (terrain) {
+		this.terrain = terrain;
 	},
 	
 	client_onserverupdate: function (state) {
@@ -140,7 +157,7 @@ Q.client_core = Q.core.extend({
 				
 				//client replay
 				for (var i = head + 1; i !== this.seq; i = (i + 1) % this.buffer_maxlength) {
-					this.process_inputs(this.state.players[this.id], this.buffer[i].input, 0.0166689, false);
+					this.process_inputs(this.state.players[this.id], this.buffer[i].input, 0.0166689);
 					this.buffer[i].player = {};
 					$.extend(true, this.buffer[i].player, this.state.players[this.id]);
 				}
@@ -174,9 +191,9 @@ Q.client_core = Q.core.extend({
 		//获取玩家相对坐标
 		this.me = this.state.players[this.id];
 		this.mapX = Math.max(Math.min(this.me.pos.x, map_width / 2),
-			this.me.pos.x - (global_width - map_width));
+			this.me.pos.x - (this.global_width - map_width));
 		this.mapY = Math.max(Math.min(this.me.pos.y, map_height / 2),
-			this.me.pos.y - (global_height - map_height));
+			this.me.pos.y - (this.global_height - map_height));
 		
 		//获取鼠标输入
 		msg.input.ms = Math.atan((this.mouse_pos.y - this.mapY) / (this.mouse_pos.x - this.mapX));
@@ -184,7 +201,7 @@ Q.client_core = Q.core.extend({
 		
 		
 		this.game.socket.emit('client_input', msg);										//向服务器发送操作
-		this.process_inputs(this.state.players[this.id], msg.input, dt, false);				//客户端立即更新状态
+		this.process_inputs(this.state.players[this.id], msg.input, dt);				//客户端立即更新状态
 		this.buffer[this.seq] = {};
 		this.buffer[this.seq].player = {};
 		this.buffer[this.seq].input = msg.input;
@@ -194,9 +211,13 @@ Q.client_core = Q.core.extend({
 		//更新所有子弹
 		for (var index in this.state.bullets)
 			if (!!this.state.bullets[index]) {
-				this.state.bullets[index].update(dt);
-				if (this.state.bullets[index].life.cur > this.state.bullets[index].life.max)
-					delete this.state.bullets[index];
+				var b = this.state.bullets[index];
+				b.update(dt);
+				if (b.life.cur > b.life.max ||
+					(b.pos.x<0 || b.pos.y<0	||
+					b.pos.x>this.global_width ||
+					b.pos.y>this.global_height)&&(!b.bounce))
+						delete this.state.bullets[index];
 			}
 		
 		this.client_render();
@@ -210,20 +231,31 @@ Q.client_core = Q.core.extend({
 		ctx.lineWidth = 1;
 		ctx.strokeStyle = 'rgba(136,136,136,0.25)';
 		
-		var stepX = 50, stepY = 50;					//网格间距
-		
 		//核心部分，模拟网格相对世界“固定”
-		var paddingX = (me.pos.x < map_width / 2 || me.pos.x > global_width - map_width / 2) ? 0 : stepX - me.pos.x % stepX,
-			paddingY = (me.pos.y < map_height / 2 || me.pos.y > global_height - map_height / 2) ? 0 : stepY - me.pos.y % stepY;
+		var paddingX = (me.pos.x < map_width / 2 || me.pos.x > this.global_width - map_width / 2) ? 0 : this.block_width - me.pos.x % this.block_width,
+			paddingY = (me.pos.y < map_height / 2 || me.pos.y > this.global_height - map_height / 2) ? 0 : this.block_height - me.pos.y % this.block_height;
 		
 		
-		for (var i = paddingY; i < map_height; i += stepY) {	//绘制横线
+		for (var i = paddingY; i < map_height; i += this.block_height) {	//绘制横线
 			ctx.beginPath();
 			ctx.moveTo(0, i);
 			ctx.lineTo(map_width, i);
 			ctx.stroke();
+
+			/*
+			block_y = Math.floor((this.me.pos.y - this.mapY + i) / this.block_height);
+			for (var xx = paddingX; xx < map_width; xx += this.block_width) {
+				block_x = Math.floor((this.me.pos.x - this.mapX + xx) / this.block_width);
+				if (this.terrain[block_y][block_x]==1) {
+					ctx.fillStyle = 'rgb(136,136,136)';
+					ctx.fillRect(block_x*this.block_width-this.me.pos.x+this.mapX,
+								 block_y*this.block_height-this.me.pos.y+this.mapY,
+								 this.block_width,this.block_height);
+				}
+			}
+			*/
 		}
-		for (var i = paddingX; i < map_width; i += stepX) {	//绘制竖线
+		for (var i = paddingX; i < map_width; i += this.block_width) {	//绘制竖线
 			ctx.beginPath();
 			ctx.moveTo(i, 0);
 			ctx.lineTo(i, map_height);

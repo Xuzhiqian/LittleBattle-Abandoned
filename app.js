@@ -15,8 +15,6 @@ app.get('/*', function (req, res, next) {
 });
 
 
-
-require("./core.js");
 require("./server.js");
 var core = new Q.server_core();
 core.server_initialize();
@@ -55,6 +53,7 @@ io.on("connection", function (socket) {
 		socket.client_id = status.id;
 		core.server_add_player(status);
 		io.emit('new_player', {id: status.id, count: core.player_count});
+		socket.emit('init_terrain',core.terrain);
 	});
 	
 	socket.on("client_input", function (msg) {
