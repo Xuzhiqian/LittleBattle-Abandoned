@@ -33,6 +33,18 @@ core.bind('delete_bullet', function (bindex) {
 	io.emit('delete_bullet', bindex);
 });
 
+core.bind('new_box', function (box) {
+	io.emit('new_box', box);
+});
+
+core.bind('box_underattack', function(info) {
+	io.emit('box_underattack',info);
+});
+
+core.bind('delete_box', function (bindex) {
+	io.emit('delete_box', bindex);
+});
+
 core.bind('player_gameover', function (pkid) {
 	io.emit('player_gameover', {id: pkid, count: core.player_count});
 });

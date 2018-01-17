@@ -12,6 +12,7 @@ Q.server_core = Q.core.extend({
 		this.player_count = 0;
 		this.players = [];
 		this.bullets = [];
+		this.boxes = [];
 		this.terrain = [];
 		this.inputs = [];
 		this.seqs = [];
@@ -24,20 +25,29 @@ Q.server_core = Q.core.extend({
 	
 	server_add_player: function (status) {
 		this.players[status.id] = new Q.game_player(status.id);
-		this.players[status.id].color = status.color;
-		this.players[status.id].pos = status.pos;
+		p = this.players[status.id];
+		p.color = status.color;
 		this.inputs[status.id] = [];
 		this.player_count++;
 		console.log(status.id + ' joins the game.');
 
 		if (this.active==false) {
 			this.active=true;
+			this.genbox={cur:0,max:60};
 			this.server_generate_terrain();
 		}
+
+		//防止出生地落在地形上
+		while (this.check_terrain(p.pos)) {
+			p.pos = {
+				x: Math.floor(Math.random() * this.global_width),
+				y: Math.floor(Math.random() * this.global_height)
+			};
+		}
+
 	},
 	
-	//经过精心调参后比较美观的随机地形生成器，其中初始覆盖率=0.432，地形迭代生存指数=5，迭代次数=10
-	//参考元胞自动机
+	//经过精心调参后比较美观的随机地形生成器，其中初始覆盖率=0.412，地形迭代生存指数=5，迭代次数=10
 	server_generate_terrain: function() {
 		var w = this.global_width / this.block_width;
 		var h = this.global_height / this.block_height;
@@ -47,7 +57,7 @@ Q.server_core = Q.core.extend({
   		for (var i=-1;i<=w+1;i++) {
     		this.terrain[i]=[];
     		for (var j=-1;j<=h+1;j++)
-      			this.terrain[i][j]=Math.random()<0.432?1:0;
+      			this.terrain[i][j]=Math.random()<0.412?1:0;
       	}
 
       	//地形周围单元计数
@@ -77,6 +87,21 @@ Q.server_core = Q.core.extend({
 		};
 	},
 
+	server_generate_box: function() {
+		var pos = {};
+		do {
+			pos = {
+				x: Math.floor(Math.random() * this.global_width),
+				y: Math.floor(Math.random() * this.global_height)
+			};
+		}
+		while (this.check_terrain(pos));
+			
+		var new_box = new Q.box(pos);
+		var index = this.boxes.push(new_box) - 1;
+		this.trigger('new_box', {box:new_box, index:index});
+	},
+
 	server_new_bullet: function (player) {
 		var new_bullet = new Q.bullet(player);
 		var index = this.bullets.push(new_bullet) - 1;
@@ -87,8 +112,28 @@ Q.server_core = Q.core.extend({
 		delete this.bullets[index];
 		this.trigger('delete_bullet', index);
 	},
+
+	server_delete_box: function (index) {
+		delete this.boxes[index];
+		this.trigger('delete_box',index);
+	},
 	
 	server_update: function (dt) {
+		if (!this.active) return;
+
+		this.genbox.cur+=1;
+		if (this.genbox.cur>=this.genbox.max) {
+			this.server_generate_box();
+			this.genbox.cur=0;
+			this.genbox.max+=1;
+		}
+
+		this.server_update_players(dt);
+		this.server_update_bullets(dt);
+		this.server_update_boxes(dt);
+	},
+	
+	server_update_players: function(dt) {
 		for (var id in this.players) {
 			if (this.inputs[id] != undefined) {
 				
@@ -106,28 +151,63 @@ Q.server_core = Q.core.extend({
 				
 			}
 		}
+	},
+
+	server_update_bullets: function(dt) {
 		for (var index in this.bullets)
 			if (!!this.bullets[index]) {
 				var b = this.bullets[index];
-				b.update(dt);
+				this.update_bullet_physics(b,dt);
 				this.server_bullet_check_hit(b);
 				if (b.destroy==true) this.server_delete_bullet(index);
 				
 			}
-		
 	},
-	
+
+	server_update_boxes: function(dt) {
+		for (var index in this.boxes)
+			if (!!this.boxes[index]) {
+				var b = this.boxes[index];
+				b.update(dt);
+				if (b.destroy==true) this.server_delete_box(index);
+			}
+	},
+
 	server_bullet_check_hit: function (bullet) {
 		for (var id in this.players) {
+			var p = this.players[id];
 			if (id != bullet.owner_id)
-				if (dis(bullet.pos, this.players[id].pos) < bullet.size + this.players[id].size) {
-					this.players[id].health.cur -= bullet.damage;
-					if (this.players[id].health.cur <= 0) {
+				if (dis(bullet.pos, p.pos) < bullet.size + p.size) {
+					p.health.cur -= bullet.damage;
+					if (p.health.cur <= 0) {
 						this.server_remove_player(id);
 						this.trigger('player_gameover', {pid: id, kid: bullet.owner_id});
 					}
 					bullet.destroy = true;
+					break;
 				}
+		}
+
+		if (bullet.destroy) return;
+
+		for (var index in this.boxes) {
+			var b = this.boxes[index];
+			if (dis(bullet.pos, b.pos) < bullet.size + b.size) {
+				b.health.cur -= bullet.damage;
+				if (b.health.cur <= 0) {
+					this.server_player_reward(bullet.owner_id,b);
+					b.destroy = true;
+				}
+				bullet.destroy = true;
+				this.trigger('box_underattack',{index:index,cur:b.health.cur});
+				break;
+			}
+		}
+	},
+
+	server_player_reward: function(pid, box) {
+		if (!!this.players[pid]) {
+			this.players[pid].score+=box.health.max/10;
 		}
 	},
 	

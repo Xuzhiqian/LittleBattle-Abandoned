@@ -4,8 +4,8 @@ if ('undefined' != typeof global) {
 
 var Q = Quisus();
 
-var global_width = 2400,
-	global_height = 1800;
+var global_width = 3200,
+	global_height = 2400;
 
 var v_a=function (a, b) {
 		return {x: a.x + b.x, y: a.y + b.y}
@@ -27,14 +27,12 @@ var player_cmp = function (x, y) {
 	
 	if (x === y) return true;
 	for (var p in x) {
-		// Inherited properties were tested using x.constructor === y.constructor
+		
 		if (x.hasOwnProperty(p)) {
-			// Allows comparing x[ p ] and y[ p ] when set to undefined
 			if (!y.hasOwnProperty(p)) {
 				return false;
 			}
 			
-			// If they have the same strict value or identity then they are equal
 			if (x[p] === y[p]) continue;
 			
 			if (isString(x[p]) || isString(y[p]))
@@ -44,7 +42,7 @@ var player_cmp = function (x, y) {
 			if ((isNumber(x[p]) && !isNumber(y[p])) || (!isNumber(x[p]) && isNumber(y[p])))
 				return false;
 			else if (isNumber(x[p]))
-				if (Math.abs(x[p] - y[p]) > 0.1)
+				if (Math.abs(x[p] - y[p]) > 0.1)	//精度0.1
 					return false;
 				else continue;
 			
@@ -71,52 +69,54 @@ Q.game_player = function (nickname) {
 	this.color = 0;
 	this.size = player_size;
 	
-	this.bullet_bias = 0.1;
-	this.bullet_life = 5;
+	this.bullet_prop={
+		speed : 240,
+		reload : 0.6,
+		bias : 0.1,
+		life : 5,
+		damage : 10,
+		bounce : false
+	};
+
+	this.score = 0;
 };
 
 var bullet_size = 5;
 Q.bullet = function (p) {
-	
+	//基础属性
 	this.pos = {x: p.pos.x, y: p.pos.y};
-	this.speed = 240;
-	this.life = {cur: 0, max: p.bullet_life};
-	
-	var b = p.bullet_bias;
-	var start_dir = p.dir + Math.PI / 2 * (Math.random() * 2 * b - b);	//弹道偏移
-	this.dir = {x: Math.cos(start_dir), y: Math.sin(start_dir)};
-
-	this.bounce = false;
-	this.color = p.color;
 	this.size = bullet_size;
-	this.damage = 10;
+	this.color = p.color;
 	this.owner_id = p.id;
+	this.destroy = false;
 
+	//可增强属性
+	this.speed = p.bullet_prop.speed;
+	this.life = {cur: 0, max: p.bullet_prop.life};
+	this.bounce = p.bullet_prop.bounce;
+	this.damage = p.bullet_prop.damage;
+
+	//弹道偏移
+	var b = p.bullet_prop.bias;
+	var start_dir = p.dir + Math.PI / 2 * (Math.random() * 2 * b - b);
+	this.dir = {x: Math.cos(start_dir), y: Math.sin(start_dir)};
+};
+
+Q.box = function (pos) {
+	this.pos = {x:pos.x, y:pos.y};
+	var maxhp = Math.floor(Math.random()*10+1)*10;		//血量随机
+	this.health = {cur:maxhp, max:maxhp};
+	this.life = {cur:0, max:60};
+	this.size = 12;
 	this.destroy = false;
 };
 
-Q.bullet.prototype.update = function (dt) {
-	this.pos = v_a(this.pos, v_n(this.dir, dt * this.speed));
-	if (this.bounce) {
-	if (this.pos.x < 0) {
-		this.dir.x = -this.dir.x;
-	}
-	if (this.pos.y < 0) {
-		this.dir.y = -this.dir.y;
-	}
-	if (this.pos.x > global_width) {
-		this.dir.x = -this.dir.x;
-	}
-	if (this.pos.y > global_height) {
-		this.dir.y = -this.dir.y;
-	}
-	}
-
+Q.box.prototype.update = function(dt) {
 	this.life.cur += dt;
-	if (this.life.cur>this.life.max) this.destroy=true;
+	if (this.life.cur>this.life.max)
+		this.destroy = true;
 };
 
-var sur = [[-1,0],[0,-1],[0,1],[1,0],[-1,-1],[-1,1],[1,-1],[1,1]];
 Q.core = Q.Evented.extend({
 	global_width:global_width,
 	global_height:global_height,
@@ -154,12 +154,19 @@ Q.core = Q.Evented.extend({
 		}
 
 		//地形碰撞检测
-		block_x = Math.floor(p.pos.x / this.block_width);
-		block_y = Math.floor(p.pos.y / this.block_height);
-		for (var i=0;i<4;i++)
-		if (this.terrain[block_x+sur[i][0]][block_y+sur[i][1]]==1) {
-			if (sur[i][0]*p.speed.x.cur>0) p.speed.x.cur = 0;
-			if (sur[i][1]*p.speed.y.cur>0) p.speed.y.cur = 0;
+		check=[[p.speed.x.cur>0?1:-1,0],[0,p.speed.y.cur>0?1:-1]];
+		speed = p.speed.x.cur*p.speed.x.cur+p.speed.y.cur*p.speed.y.cur;
+		check.push([p.speed.x.cur/speed,p.speed.y.cur/speed]);
+
+		for (var i=0;i<3;i++) {
+			block_x = Math.floor((p.pos.x+check[i][0]*p.size) / this.block_width);
+			block_y = Math.floor((p.pos.y+check[i][1]*p.size) / this.block_height);
+			if (this.terrain[block_x]!=undefined)
+			if (this.terrain[block_x][block_y]!=undefined)
+			if (this.terrain[block_x][block_y]==1) {
+				if (Math.abs(check[i][0])>0.01) p.speed.x.cur = 0;
+				if (Math.abs(check[i][1])>0.01) p.speed.y.cur = 0;
+			}
 		}
 
 		p.pos.x = p.pos.x + p.speed.x.cur * dt;
@@ -172,6 +179,43 @@ Q.core = Q.Evented.extend({
 		if (p.pos.y > this.global_height) p.pos.y = this.global_height;
 	},
 	
+	update_bullet_physics:function (b,dt) {
+		b.pos = v_a(b.pos, v_n(b.dir, dt * b.speed));
+
+		if (b.pos.x < 0 || b.pos.x > this.global_width)
+			if (b.bounce==true)
+				b.dir.x = -b.dir.x;
+			else
+				b.destroy = true;
+		if (b.pos.y < 0 || b.pos.y > this.global_height)
+			if (b.bounce==true)
+				b.dir.y = -b.dir.y;
+			else
+				b.destroy = true;
+
+		//地形反弹
+		b_check=[[b.dir.x>0?1:-1,0],[0,b.dir.y>0?1:-1]];
+		for (var i=0;i<2;i++) {
+			bblck_x = Math.floor((b.pos.x+b_check[i][0]*b.size) / this.block_width);
+			bblck_y = Math.floor((b.pos.y+b_check[i][1]*b.size) / this.block_height);
+			if (this.terrain[bblck_x]!=undefined)
+				if (this.terrain[bblck_x][bblck_y]!=undefined)
+					if (this.terrain[bblck_x][bblck_y]==1) {
+						if (b.bounce==true) {
+							if (i==0) b.dir.x = -b.dir.x;
+							if (i==1) b.dir.y = -b.dir.y;
+						}
+						else {
+							b.destroy=true;
+							break;
+						}
+					}
+		}
+
+		b.life.cur += dt;
+		if (b.life.cur>b.life.max) b.destroy=true;
+	},
+
 	process_inputs: function (p, inputs, dt) {
 
 		for (var i = 0; i < inputs.kb.length; i++) {
@@ -194,6 +238,15 @@ Q.core = Q.Evented.extend({
 			(inputs.kb.indexOf('w') < 0 && inputs.kb.indexOf('s') < 0));
 		
 		p.dir = inputs.ms;
+	},
+
+	check_terrain: function(pos) {
+		var bx = Math.floor(pos.x/this.block_width);
+		var by = Math.floor(pos.y/this.block_height);
+		if (this.terrain[bx]!=undefined)
+			if (this.terrain[bx][by]!=undefined)
+				return this.terrain[bx][by]==1;
+		return true;
 	}
 });
 
