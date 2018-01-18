@@ -193,8 +193,9 @@ Q.client_core = Q.core.extend({
 			}
 			else
 				authority_me = state.players[index];
-		if (animation && Math.abs(authority_me.health.cur-temp[this.id].health.cur)>1)
-			this.client_add_animation('player','underatk',this.render_list[this.id]);
+		if (animation && authority_me)
+			if (Math.abs(authority_me.health.cur-temp[this.id].health.cur)>1)
+				this.client_add_animation('player','underatk',this.render_list[this.id]);
 
 		var head = -1;
 		
