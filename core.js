@@ -79,6 +79,7 @@ Q.game_player = function (nickname) {
 	};
 
 	this.score = 0;
+	this.alpha = 1;
 };
 
 var bullet_size = 5;
@@ -88,7 +89,8 @@ Q.bullet = function (p) {
 	this.size = bullet_size;
 	this.color = p.color;
 	this.owner_id = p.id;
-	this.destroy = false;
+	this.destroyable = false;
+	this.alpha = 1;
 
 	//可增强属性
 	this.speed = p.bullet_prop.speed;
@@ -108,13 +110,14 @@ Q.box = function (pos) {
 	this.health = {cur:maxhp, max:maxhp};
 	this.life = {cur:0, max:60};
 	this.size = 12;
-	this.destroy = false;
+	this.destroyable = false;
+	this.alpha = 1;
 };
 
 Q.box.prototype.update = function(dt) {
 	this.life.cur += dt;
 	if (this.life.cur>this.life.max)
-		this.destroy = true;
+		this.destroyable = true;
 };
 
 Q.core = Q.Evented.extend({
@@ -186,12 +189,12 @@ Q.core = Q.Evented.extend({
 			if (b.bounce==true)
 				b.dir.x = -b.dir.x;
 			else
-				b.destroy = true;
+				b.destroyable = true;
 		if (b.pos.y < 0 || b.pos.y > this.global_height)
 			if (b.bounce==true)
 				b.dir.y = -b.dir.y;
 			else
-				b.destroy = true;
+				b.destroyable = true;
 
 		//地形反弹
 		b_check=[[b.dir.x>0?1:-1,0],[0,b.dir.y>0?1:-1]];
@@ -206,14 +209,15 @@ Q.core = Q.Evented.extend({
 							if (i==1) b.dir.y = -b.dir.y;
 						}
 						else {
-							b.destroy=true;
+							b.destroyable=true;
 							break;
 						}
 					}
 		}
 
 		b.life.cur += dt;
-		if (b.life.cur>b.life.max) b.destroy=true;
+		if (b.life.cur>b.life.max) b.destroyable=true;
+
 	},
 
 	process_inputs: function (p, inputs, dt) {

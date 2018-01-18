@@ -10,6 +10,8 @@ var ratio = 2,
 	supercolor_table = [];
 	supercolor_num = 7;
 
+	animation = true;	//是否开启消失渐变等动画
+
 Q.client_core = Q.core.extend({
 	init: function () {
 		this.id = '';
@@ -17,6 +19,8 @@ Q.client_core = Q.core.extend({
 		this.buffer_maxlength = 2000;
 		this.seq = 0;
 		this.state = {};
+		this.anim_list = [];
+		this.render_list = [];
 		this.kills = 0;
 		this.messages = {
 			text: [], length: 5, tail: 0,
@@ -79,8 +83,8 @@ Q.client_core = Q.core.extend({
 		this.state.boxes = [];
 		this.state.players = [];
 		this.state.players[this.id] = new Q.game_player(this.id);
+		this.render_list[this.id]={alpha:1,size:player_size};
 		this.state.players[this.id].color = Math.floor(Math.random() * color_table_length);
-		
 		if (this.id === 'xzq') this.state.players[this.id].color = 0; //Just for fun!
 		
 		this.game.socket.emit('join', {
@@ -98,7 +102,7 @@ Q.client_core = Q.core.extend({
 		this.game.socket.on('box_underattack', this.client_boxunderattack.bind(this)); 	//箱子扣血
 		this.game.socket.on('delete_box', this.client_deletebox.bind(this));			//删除箱子
 		
-		this.game.socket.on('init_terrain', this.client_getterrain.bind(this));
+		this.game.socket.on('init_surrounding', this.client_init_sur.bind(this));
 		this.game.socket.on('player_gameover', this.client_gameover.bind(this));		//玩家死亡
 		this.game.socket.on('new_player', this.client_newplayerjoin.bind(this));
 		this.game.socket.on('player_disconnect', this.client_playerdisconnect.bind(this));
@@ -108,7 +112,7 @@ Q.client_core = Q.core.extend({
 	client_newplayerjoin: function (state) {
 		this.messages.newmsg(state.id + ' joins the game');
 		this.player_count = state.count;
-		
+		this.render_list[state.id]={alpha:1,size:player_size};
 	},
 	
 	client_playerdisconnect: function (state) {
@@ -122,6 +126,8 @@ Q.client_core = Q.core.extend({
 	},
 	
 	client_deletebullet: function (index) {
+		if (animation && this.state.bullets[index])
+			this.client_add_animation('bullet','fadeout',this.state.bullets[index]);
 		delete this.state.bullets[index];
 	},
 
@@ -130,31 +136,66 @@ Q.client_core = Q.core.extend({
 	},
 
 	client_boxunderattack: function (info) {
-		if (this.state.boxes[info.index]!=undefined)
-			this.state.boxes[info.index].health.cur = info.cur;
+		if (this.state.boxes[info.index]) {
+			var b = this.state.boxes[info.index];
+			if (animation)
+				this.client_add_animation('box','underatk',this.state.boxes[info.index]);
+			b.health.cur = info.cur;
+		}
 	},
 
 	client_deletebox: function (index) {
+		if (animation && this.state.boxes[index])
+			this.client_add_animation('box','fadeout',this.state.boxes[index]);
 		delete this.state.boxes[index];
 	},
 
-	client_getterrain: function (terrain) {
-		this.terrain = terrain;
+	client_init_sur: function (sur) {
+		this.terrain = sur.terrain;
+		this.state.bullets = sur.bullets;
+		this.state.boxes = sur.boxes;
 	},
 	
+	client_add_animation: function(type,eff,entity) {
+		if (!entity.size)
+			entity.size=player_size;
+		if (!entity.alpha)
+			entity.alpha = 1;
+		var anim = {type:type,eff:eff,entity:entity,origin:{alpha:entity.alpha,size:entity.size}};
+		anim.entity.anim_destroyable = false;
+		this.anim_list.push(anim);
+	},
+
+	client_update_others: function(local,ser) {
+		local.id=ser.id;
+		local.pos=ser.pos;
+		local.health=ser.health;
+		local.dir=ser.dir;
+		local.color=ser.color;
+		local.score=ser.score;
+	},
+
 	client_onserverupdate: function (state) {
-		var temp_me = this.state.players[this.id];
+		var temp = this.state.players;
 		var authority_me;
-		
-		this.state.players = [];
-		this.state.players[this.id] = temp_me;
+
+		this.state.players=[];
+		this.state.players[this.id] = temp[this.id];
 		
 		for (var index in state.players)
-			if (state.players[index].id !== this.id)
-				this.state.players[state.players[index].id] = state.players[index];
+			if (state.players[index].id !== this.id) {
+				if (animation && temp[state.players[index].id])
+					if (Math.abs(temp[state.players[index].id].health.cur-state.players[index].health.cur)>1) {
+						if (!this.render_list[state.players[index].id]) this.render_list[state.players[index].id]={};
+						this.client_add_animation('player','underatk',this.render_list[state.players[index].id]);
+					}
+				this.state.players[state.players[index].id]=state.players[index]		
+			}
 			else
 				authority_me = state.players[index];
-		
+		if (animation && Math.abs(authority_me.health.cur-temp[this.id].health.cur)>1)
+			this.client_add_animation('player','underatk',this.render_list[this.id]);
+
 		var head = -1;
 		
 		for (var index in state.seqs)
@@ -194,16 +235,9 @@ Q.client_core = Q.core.extend({
 			if (!!this.state.bullets[index]) {
 				var b = this.state.bullets[index];
 				this.update_bullet_physics(b,dt);
-				if (b.destroy==true)
-					delete b;
+				if (b.destroyable==true)
+					this.client_deletebullet(index);
 			}
-	},
-
-	client_update_boxes: function(dt) {
-		//只更新box的life，目的是能够本地绘制箱子消失时间，其余均在服务器端更新
-		for (var index in this.state.boxes)
-			if (!!this.state.boxes[index])
-				this.state.boxes[index].life.cur+=dt;
 	},
 
 	client_capture_input: function() {
@@ -256,7 +290,6 @@ Q.client_core = Q.core.extend({
 		this.client_predict(msg, dt);
 
 		this.client_update_bullets(dt);
-		this.client_update_boxes(dt);
 		
 		this.client_getme();	//更新处理完毕后的位置
 		this.client_render();
@@ -314,8 +347,7 @@ Q.client_core = Q.core.extend({
 		var r = box.size;
 		ctx.save();
 
-		//消失渐变动画
-		ctx.globalAlpha = (box.life.cur > box.life.max - 2) ? Math.max(box.life.max - box.life.cur, 0) / 2 : 1;
+		ctx.globalAlpha = box.alpha || 1;
 		ctx.translate(box.pos.x - this.me.pos.x + this.mapX, box.pos.y - this.me.pos.y + this.mapY);
 		
 		//绘制轮廓							
@@ -330,8 +362,9 @@ Q.client_core = Q.core.extend({
 		//绘制血槽
 		ctx.strokeStyle = 'white';
 		ctx.lineWidth = 1;
-		ctx.fillStyle = 'lightgreen';								
-		ctx.fillRect(-r, r + 6, box.health.cur / box.health.max * 2 * r, 5);
+		var blood = box.health.cur / box.health.max;
+		ctx.fillStyle = blood<0.3?blood<0.15?'red':'yellow':'lightgreen';								
+		ctx.fillRect(-r, r + 6, blood * 2 * r, 5);
 		ctx.strokeRect(-r , r + 6, 2*r, 5);
 
 		ctx.restore();
@@ -341,10 +374,9 @@ Q.client_core = Q.core.extend({
 		var ctx = this.game.ctx;
 		var r = bullet.size;
 		ctx.save();
-		//子弹消失动画设置
-		ctx.globalAlpha = (bullet.life.cur > bullet.life.max - 0.5) ? Math.max(bullet.life.max - bullet.life.cur, 0) * 2 : 1;
+
+		ctx.globalAlpha = bullet.alpha || 1;
 		ctx.translate(bullet.pos.x - this.me.pos.x + this.mapX, bullet.pos.y - this.me.pos.y + this.mapY);
-		
 		ctx.beginPath();
 		ctx.arc(0, 0, r, 0, 2 * Math.PI);							//绘制圆形轮廓
 		ctx.lineWidth = 4;
@@ -363,10 +395,11 @@ Q.client_core = Q.core.extend({
 	
 	client_render_player: function (player) {
 		var ctx = this.game.ctx;
-		var r = player.size;
+		var r = this.render_list[player.id]?this.render_list[player.id].size:player_size;
 		
 		ctx.save();
 		
+		ctx.globalAlpha = this.render_list[player.id]?this.render_list[player.id].alpha:1;
 		ctx.translate(player.pos.x - this.me.pos.x + this.mapX, player.pos.y - this.me.pos.y + this.mapY);			//画布偏移至玩家中心
 		
 		ctx.fillStyle = 'white';
@@ -374,8 +407,9 @@ Q.client_core = Q.core.extend({
 		
 		ctx.strokeStyle = 'white';
 		ctx.lineWidth = 1;
-		ctx.fillStyle = 'lightgreen';								//绘制血槽
-		ctx.fillRect(-r, r + 6, player.health.cur / player.health.max * 2 * r, 5);
+		var blood = player.health.cur / player.health.max;
+		ctx.fillStyle = blood<0.3?blood<0.15?'red':'yellow':'lightgreen';		//绘制血槽
+		ctx.fillRect(-r, r + 6, blood * 2 * r, 5);
 		ctx.strokeRect(-r , r + 6, 2*r, 5);
 		
 		ctx.beginPath();
@@ -426,6 +460,40 @@ Q.client_core = Q.core.extend({
 		ctx.restore();
 	},
 	
+	//绘制逐帧动画，若为派生动画（如fade-out等实体消亡类型），需描述每一帧并额外调用client_render方法；
+	//			 若为寄生动画（如underatk等寄生于实体类型），只需描述每一帧即可；
+	//所有动画都以anim.entity.anim_destroyable=true结束，外部将销毁此anim对象。
+	client_render_animation: function (anim) {
+		if (anim.eff==='fadeout') {
+			if (anim.type==='bullet') {
+				anim.entity.alpha-=0.1;
+				anim.entity.size+=0.2;
+				if (anim.entity.alpha>0)
+					this.client_render_bullet(anim.entity);
+				else
+					anim.entity.anim_destroyable = true;
+			}
+			if (anim.type==='box') {
+				anim.entity.alpha-=0.1;
+				anim.entity.size+=0.2;
+				if (anim.entity.alpha>0)
+					this.client_render_box(anim.entity);
+				else
+					anim.entity.anim_destroyable = true;
+			}
+		}
+		if (anim.eff==='underatk') {
+				anim.entity.alpha-=0.08;
+				anim.entity.size+=0.4;
+				if (anim.entity.alpha<0.25) {
+					anim.entity.alpha = anim.origin.alpha;	//恢复到原始状态
+					anim.entity.size = anim.origin.size;
+					anim.entity.anim_destroyable = true;
+				}
+
+		}
+	},
+
 	client_render: function () {
 		this.game.ctx.clearRect(0, 0, map_width, map_height);
 		
@@ -441,6 +509,18 @@ Q.client_core = Q.core.extend({
 		for (var index in this.state.boxes) {
 			if (!!this.state.boxes[index])
 				this.client_render_box(this.state.boxes[index]);
+		}
+		for (var index in this.anim_list) {
+			if (!!this.anim_list[index]) {
+
+				anim = this.anim_list[index];
+				if (!!anim.entity) {
+					if (anim.entity.anim_destroyable)
+						delete this.anim_list[index];
+					else 
+						this.client_render_animation(anim);
+				}
+			}
 		}
 	},
 	

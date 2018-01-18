@@ -243,7 +243,6 @@ var Quisus = function () {
 		}
 	});
 	
-	//所有游戏活动对象的基类，用于管理组件，可从该类扩展
 	Q.GameObject = Q.Evented.extend({
 		has: function (component) {
 			return this[component] ? true : false;

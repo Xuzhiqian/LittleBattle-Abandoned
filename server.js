@@ -13,6 +13,7 @@ Q.server_core = Q.core.extend({
 		this.players = [];
 		this.bullets = [];
 		this.boxes = [];
+		this.anim_list = [];
 		this.terrain = [];
 		this.inputs = [];
 		this.seqs = [];
@@ -159,7 +160,7 @@ Q.server_core = Q.core.extend({
 				var b = this.bullets[index];
 				this.update_bullet_physics(b,dt);
 				this.server_bullet_check_hit(b);
-				if (b.destroy==true) this.server_delete_bullet(index);
+				if (b.destroyable==true) this.server_delete_bullet(index);
 				
 			}
 	},
@@ -169,7 +170,7 @@ Q.server_core = Q.core.extend({
 			if (!!this.boxes[index]) {
 				var b = this.boxes[index];
 				b.update(dt);
-				if (b.destroy==true) this.server_delete_box(index);
+				if (b.destroyable==true) this.server_delete_box(index);
 			}
 	},
 
@@ -183,12 +184,12 @@ Q.server_core = Q.core.extend({
 						this.server_remove_player(id);
 						this.trigger('player_gameover', {pid: id, kid: bullet.owner_id});
 					}
-					bullet.destroy = true;
+					bullet.destroyable = true;
 					break;
 				}
 		}
 
-		if (bullet.destroy) return;
+		if (bullet.destroyable) return;
 
 		for (var index in this.boxes) {
 			var b = this.boxes[index];
@@ -196,9 +197,9 @@ Q.server_core = Q.core.extend({
 				b.health.cur -= bullet.damage;
 				if (b.health.cur <= 0) {
 					this.server_player_reward(bullet.owner_id,b);
-					b.destroy = true;
+					b.destroyable = true;
 				}
-				bullet.destroy = true;
+				bullet.destroyable = true;
 				this.trigger('box_underattack',{index:index,cur:b.health.cur});
 				break;
 			}

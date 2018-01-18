@@ -4,13 +4,14 @@ var app = require("express")();
 var server = require("http").Server(app);
 var io = require("socket.io").listen(server);
 
+
 app.get('/', function (req, res) {
-	res.sendfile('/index.html', {root: __dirname});
+	res.sendFile('/index.html', {root: __dirname});
 });
 
 app.get('/*', function (req, res, next) {
 	var file = req.params[0];
-	res.sendfile(__dirname + '/' + file);
+	res.sendFile(__dirname + '/' + file);
 	
 });
 
@@ -65,7 +66,7 @@ io.on("connection", function (socket) {
 		socket.client_id = status.id;
 		core.server_add_player(status);
 		io.emit('new_player', {id: status.id, count: core.player_count});
-		socket.emit('init_terrain',core.terrain);
+		socket.emit('init_surrounding',{terrain:core.terrain,boxes:core.boxes,bullets:core.bullets});
 	});
 	
 	socket.on("client_input", function (msg) {
