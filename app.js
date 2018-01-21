@@ -24,7 +24,7 @@ core.names=[];
 core.id_sendstate = setInterval(function () {
 	if (core.active)
 		io.emit('on_server_update', core.server_snapshot());
-}, 30);
+}, this.tickrate);
 
 core.bind('new_bullet', function (bullet) {
 	io.emit('new_bullet', bullet);

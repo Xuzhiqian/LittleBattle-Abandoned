@@ -12,16 +12,26 @@ var ratio = 2,
 
 	animation = true;	//是否开启消失渐变等动画
 
+var lerp = function(a,b,k) {
+	return a+k*(b-a);
+}
+
 Q.client_core = Q.core.extend({
 	init: function () {
 		this.id = '';
 		this.buffer = [];
 		this.buffer_maxlength = 2000;
 		this.seq = 0;
+
 		this.state = {};
+		this.old_players= {};
+		this.last_players = {};
+
 		this.anim_list = [];
 		this.render_list = [];
 		this.kills = 0;
+		this.terrain=[];
+
 		this.messages = {
 			text: [], length: 5, tail: 0,
 			newmsg: function (text) {
@@ -29,7 +39,7 @@ Q.client_core = Q.core.extend({
 				this.tail = (this.tail + 1) % this.length;
 			}
 		};
-		this.terrain=[];
+		
 	},
 
 	client_initialize: function (enviroment) {
@@ -157,22 +167,32 @@ Q.client_core = Q.core.extend({
 	},
 	
 	client_add_animation: function(type,eff,entity) {
-		if (!entity.size)
-			entity.size=player_size;
-		if (!entity.alpha)
-			entity.alpha = 1;
-		var anim = {type:type,eff:eff,entity:entity,origin:{alpha:entity.alpha,size:entity.size}};
-		anim.entity.anim_destroyable = false;
-		this.anim_list.push(anim);
-	},
+		var anim = {};
+		if (eff=='underatk' || eff=='fadeout') {
+			if (!entity.size) entity.size=player_size;
+			if (!entity.alpha) entity.alpha=1;
+			anim = {type:type,
+					eff:eff,
+					entity:entity,
+					origin:{alpha:entity.alpha,
+							size:entity.size}};
 
-	client_update_others: function(local,ser) {
-		local.id=ser.id;
-		local.pos=ser.pos;
-		local.health=ser.health;
-		local.dir=ser.dir;
-		local.color=ser.color;
-		local.score=ser.score;
+		}
+		else if (eff=='interpolation') {
+			anim = {type:type,
+					eff:eff,
+					entity:entity.render,
+					old:entity.old,
+					last:entity.last,
+					ip_time:0};
+		}
+		else if (eff=='underatk_blood') {
+			anim = {type:type,
+					eff:eff,
+					entity:}
+		}
+		anim.anim_destroyable = false;
+		this.anim_list.push(anim);
 	},
 
 	client_onserverupdate: function (state) {
@@ -181,21 +201,37 @@ Q.client_core = Q.core.extend({
 
 		this.state.players=[];
 		this.state.players[this.id] = temp[this.id];
-		
-		for (var index in state.players)
-			if (state.players[index].id !== this.id) {
-				if (animation && temp[state.players[index].id])
-					if (Math.abs(temp[state.players[index].id].health.cur-state.players[index].health.cur)>1) {
-						if (!this.render_list[state.players[index].id]) this.render_list[state.players[index].id]={};
-						this.client_add_animation('player','underatk',this.render_list[state.players[index].id]);
-					}
-				this.state.players[state.players[index].id]=state.players[index]		
+
+		for (var index in state.players) {
+			var id = state.players[index].id;
+			if (id !== this.id) {
+
+				if (animation && temp[id]) {
+					if (!this.render_list[id]) this.render_list[id]={};
+
+					//其他玩家受攻击时的闪烁动画
+					if (Math.abs(temp[id].health.cur-state.players[index].health.cur)>1)
+						this.client_add_animation('player','underatk',this.render_list[id]);
+					
+					//客户端插值动画
+					this.client_add_animation('player','interpolation',{old:temp[id],
+																	   last:state.players[index],
+																	 render:this.render_list[id]});
+					
+				}
+
+				this.state.players[id] = state.players[index];
 			}
 			else
 				authority_me = state.players[index];
+		}
+
+		//自己受到攻击时的动画
 		if (animation && authority_me)
-			if (Math.abs(authority_me.health.cur-temp[this.id].health.cur)>1)
+			if (Math.abs(authority_me.health.cur-temp[this.id].health.cur)>1) {
 				this.client_add_animation('player','underatk',this.render_list[this.id]);
+				this.client_add_animation('window','underatk_blood');
+			}
 
 		var head = -1;
 		
@@ -293,7 +329,7 @@ Q.client_core = Q.core.extend({
 		this.client_update_bullets(dt);
 		
 		this.client_getme();	//更新处理完毕后的位置
-		this.client_render();
+		this.client_render(dt);
 	},
 	
 	client_render_background: function () {
@@ -344,6 +380,8 @@ Q.client_core = Q.core.extend({
 	},
 	
 	client_render_box:function (box) {
+		if (!box) return;
+
 		var ctx = this.game.ctx;
 		var r = box.size;
 		ctx.save();
@@ -364,7 +402,7 @@ Q.client_core = Q.core.extend({
 		ctx.strokeStyle = 'white';
 		ctx.lineWidth = 1;
 		var blood = box.health.cur / box.health.max;
-		ctx.fillStyle = blood<0.3?blood<0.15?'red':'yellow':'lightgreen';								
+		ctx.fillStyle = blood<0.41?blood<0.21?'red':'yellow':'lightgreen';								
 		ctx.fillRect(-r, r + 6, blood * 2 * r, 5);
 		ctx.strokeRect(-r , r + 6, 2*r, 5);
 
@@ -372,6 +410,8 @@ Q.client_core = Q.core.extend({
 	},
 
 	client_render_bullet: function (bullet) {
+		if (!bullet) return;
+
 		var ctx = this.game.ctx;
 		var r = bullet.size;
 		ctx.save();
@@ -395,26 +435,35 @@ Q.client_core = Q.core.extend({
 	},
 	
 	client_render_player: function (player) {
+		if (!player) return;
+
 		var ctx = this.game.ctx;
-		var r = this.render_list[player.id]?this.render_list[player.id].size:player_size;
-		
+		var r = this.render_list[player.id]?(this.render_list[player.id].size || player_size):player_size;
+		var pos = this.render_list[player.id]?(this.render_list[player.id].pos || player.pos):player.pos;
+		var dir = this.render_list[player.id]?(this.render_list[player.id].dir || player.dir):player.dir;
+		var health = this.render_list[player.id]?(this.render_list[player.id].health || player.health):player.health;
+
 		ctx.save();
-		
-		ctx.globalAlpha = this.render_list[player.id]?this.render_list[player.id].alpha:1;
-		ctx.translate(player.pos.x - this.me.pos.x + this.mapX, player.pos.y - this.me.pos.y + this.mapY);			//画布偏移至玩家中心
-		
+		ctx.globalAlpha = this.render_list[player.id]?(this.render_list[player.id].alpha || 1):1;
+
+			//画布偏移，以玩家为中心
+		ctx.translate(pos.x - this.me.pos.x + this.mapX, pos.y - this.me.pos.y + this.mapY);
+
+			//绘制id
 		ctx.fillStyle = 'white';
-		ctx.fillText(player.id, -r + 3, -r - 6);					//绘制id
-		
+		ctx.fillText(player.id, -r + 3, -r - 6);
+
+			//绘制血槽
 		ctx.strokeStyle = 'white';
 		ctx.lineWidth = 1;
-		var blood = player.health.cur / player.health.max;
-		ctx.fillStyle = blood<0.3?blood<0.15?'red':'yellow':'lightgreen';		//绘制血槽
+		var blood = health.cur / health.max;
+		ctx.fillStyle = blood<0.41?blood<0.21?'red':'yellow':'lightgreen';		
 		ctx.fillRect(-r, r + 6, blood * 2 * r, 5);
 		ctx.strokeRect(-r , r + 6, 2*r, 5);
-		
+
+			//绘制圆形轮廓
 		ctx.beginPath();
-		ctx.arc(0, 0, r, 0, 2 * Math.PI);							//绘制圆形轮廓
+		ctx.arc(0, 0, r, 0, 2 * Math.PI);							
 		ctx.lineWidth = 5;
 		ctx.strokeStyle = 'white';
 		ctx.stroke();
@@ -422,12 +471,12 @@ Q.client_core = Q.core.extend({
 			ctx.fillStyle = color_table[player.color];
 		else
 			ctx.fillStyle = this.supercolor;
-		
 		ctx.fill();
 		ctx.closePath();
-		
-		ctx.beginPath();									//炮口绘制
-		ctx.arc(r * Math.cos(player.dir), r * Math.sin(player.dir), 5, 0, 2 * Math.PI);
+
+		//炮口绘制
+		ctx.beginPath();									
+		ctx.arc(r * Math.cos(dir), r * Math.sin(dir), 5, 0, 2 * Math.PI);
 		ctx.stroke();
 		ctx.fillStyle = 'white';
 		ctx.fill();
@@ -463,8 +512,9 @@ Q.client_core = Q.core.extend({
 	
 	//绘制逐帧动画，若为派生动画（如fade-out等实体消亡类型），需描述每一帧并额外调用client_render方法；
 	//			 若为寄生动画（如underatk等寄生于实体类型），只需描述每一帧即可；
-	//所有动画都以anim.entity.anim_destroyable=true结束，外部将销毁此anim对象。
-	client_render_animation: function (anim) {
+	//所有动画都以anim.anim_destroyable=true结束，外部将销毁此anim对象。
+	client_render_animation: function (anim,dt) {
+		if (!anim) return;
 		if (anim.eff==='fadeout') {
 			if (anim.type==='bullet') {
 				anim.entity.alpha-=0.1;
@@ -472,7 +522,7 @@ Q.client_core = Q.core.extend({
 				if (anim.entity.alpha>0)
 					this.client_render_bullet(anim.entity);
 				else
-					anim.entity.anim_destroyable = true;
+					anim.anim_destroyable = true;
 			}
 			if (anim.type==='box') {
 				anim.entity.alpha-=0.1;
@@ -480,7 +530,7 @@ Q.client_core = Q.core.extend({
 				if (anim.entity.alpha>0)
 					this.client_render_box(anim.entity);
 				else
-					anim.entity.anim_destroyable = true;
+					anim.anim_destroyable = true;
 			}
 		}
 		if (anim.eff==='underatk') {
@@ -489,17 +539,44 @@ Q.client_core = Q.core.extend({
 				if (anim.entity.alpha<0.25) {
 					anim.entity.alpha = anim.origin.alpha;	//恢复到原始状态
 					anim.entity.size = anim.origin.size;
-					anim.entity.anim_destroyable = true;
+					anim.anim_destroyable = true;
 				}
 
 		}
+
+		if (anim.eff==='interpolation') {
+			var k = anim.ip_time / this.tickrate;
+			var o = anim.old;
+			var l = anim.last;
+			if (k>1) {
+				k=1;
+				anim.anim_destroyable = true;
+			}
+			anim.entity.pos = {x:lerp(o.pos.x,l.pos.x,k),
+							   y:lerp(o.pos.y,l.pos.y,k)};
+			anim.entity.health = {cur:lerp(o.health.cur,l.health.cur,k),
+								  max:l.health.max};
+			anim.entity.dir = lerp(o.dir,l.dir,k);
+			anim.ip_time += dt;
+		}
 	},
 
-	client_render: function () {
+	client_render: function (dt) {
 		this.game.ctx.clearRect(0, 0, map_width, map_height);
 		
 		this.client_render_background();
 		this.client_render_message();
+		for (var index in this.anim_list) {
+			if (!!this.anim_list[index]) {
+
+				anim = this.anim_list[index];
+				if (anim.anim_destroyable)
+					delete this.anim_list[index];
+				else 
+					this.client_render_animation(anim,dt);
+			}
+		}
+
 		for (var id in this.state.players) {
 			this.client_render_player(this.state.players[id]);
 		}
@@ -510,18 +587,6 @@ Q.client_core = Q.core.extend({
 		for (var index in this.state.boxes) {
 			if (!!this.state.boxes[index])
 				this.client_render_box(this.state.boxes[index]);
-		}
-		for (var index in this.anim_list) {
-			if (!!this.anim_list[index]) {
-
-				anim = this.anim_list[index];
-				if (!!anim.entity) {
-					if (anim.entity.anim_destroyable)
-						delete this.anim_list[index];
-					else 
-						this.client_render_animation(anim);
-				}
-			}
 		}
 	},
 	

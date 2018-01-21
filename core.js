@@ -60,8 +60,8 @@ var player_size = 15;
 Q.game_player = function (nickname) {
 	this.id = nickname;
 	this.pos = {
-		x: Math.floor(Math.random() * global_width),
-		y: Math.floor(Math.random() * global_height)
+		x: 0,//Math.floor(Math.random() * global_width),
+		y: 0//Math.floor(Math.random() * global_height)
 	};
 	this.health = {cur: 100, max: 100};
 	this.speed = {x: {cur: 0, max: 120, acc: 180}, y: {cur: 0, max: 100, acc: 180}};
@@ -126,6 +126,8 @@ Q.core = Q.Evented.extend({
 
 	block_width:20,
 	block_height:20,
+
+	tickrate:50,		//客户端和服务器的通信间隔(ms)
 
 	move_u: function (p, dt) {
 		p.speed.y.cur = Math.max(p.speed.y.cur - dt * p.speed.y.acc, -p.speed.y.max);
