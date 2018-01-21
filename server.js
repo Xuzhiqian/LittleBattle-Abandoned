@@ -48,55 +48,79 @@ Q.server_core = Q.core.extend({
 
 	},
 	
-	//经过精心调参后比较美观的随机地形生成器，其中初始覆盖率=0.412，地形迭代生存指数=5，迭代次数=10
+	//经过精心调参后比较美观的随机地形生成器，由主地形和分支地形构成，
+	//主地形生成较大的类陆地形，分支地形生成零散的岛屿地形，最终两者合并。
 	server_generate_terrain: function() {
 		var w = this.global_width / this.block_width;
 		var h = this.global_height / this.block_height;
 
-		//地形随机化
-		this.terrain=[]
-  		for (var i=-1;i<=w+1;i++) {
-    		this.terrain[i]=[];
-    		for (var j=-1;j<=h+1;j++)
-      			this.terrain[i][j]=Math.random()<0.412?1:0;
-      	}
+		this.terrain = [];
 
       	//地形周围单元计数
-      	var count=function(t,x,y) {
+      	var count=function(t,x,y,f) {
       		var c=0;
-      		for (var i=x-1;i<=x+1;i++)
-        		for (var j=y-1;j<=y+1;j++)
+      		for (var i=x-f;i<=x+f;i++)
+        		for (var j=y-f;j<=y+f;j++)
           			if (t[i]!=undefined)
             			if (t[i][j]!=undefined)
               				if (t[i][j]==1)	c++;
       		return c;
     	};
 
-    	//10次迭代演算
-    	for (var dd=0;dd<10;dd++) {
-    		var _terrain=[];
-    		for (var i=-1;i<=w+1;i++) {
-      			_terrain[i]=[];
-      			for (var j=-1;j<=h+1;j++) {
-        			if (count(this.terrain,i,j)>=5)
-          				_terrain[i][j]=1;
-        			else
-          			_terrain[i][j]=0;
-      			}
+    	//地形迭代
+    	var evol = function(t,opt) {
+    		for (var dd=0;dd<opt.d;dd++) {
+    			var _terrain=[];
+    			for (var i=-1;i<=w+1;i++) {
+      				_terrain[i]=[];
+      				for (var j=-1;j<=h+1;j++) {
+        				if (count(t,i,j,opt.w)>=opt.s)
+          					_terrain[i][j]=1;
+        				else
+          				_terrain[i][j]=0;
+      				}
+    			}
+    			t=_terrain;
+			}
+			return t;
+    	};
+
+    	//地形参数
+    	var main={p:0.465 , w:2, s:13 , d:25};
+    	var isle={p:0.398 , w:1, s:5  , d:20};
+
+		//地形随机化
+		this.main_terrain=[];
+		this.isle_terrain=[];
+  		for (var i=-3;i<=w+3;i++) {
+    		this.main_terrain[i]=[];
+    		this.isle_terrain[i]=[];
+    		for (var j=-3;j<=h+3;j++) {
+      			this.main_terrain[i][j]=Math.random()<main.p?1:0;
+      			this.isle_terrain[i][j]=Math.random()<isle.p?1:0;
     		}
-    		this.terrain=_terrain;
-		};
+      	}
+
+    	//主地形迭代
+    	this.main_terrain = evol(this.main_terrain,main);
+
+		//分支地形迭代
+		this.isle_terrain = evol(this.isle_terrain,isle);
+
+		//地形融合
+		for (var i=-1;i<=w+1;i++) {
+			this.terrain[i]=[];
+			for (var j=-1;j<=h+1;j++)
+				this.terrain[i][j]=this.main_terrain[i][j] || this.isle_terrain[i][j];
+		}
 	},
 
 	server_generate_box: function() {
-		var pos = {};
-		do {
-			pos = {
+		var pos = {
 				x: Math.floor(Math.random() * this.global_width),
 				y: Math.floor(Math.random() * this.global_height)
 			};
-		}
-		while (this.check_terrain(pos));
+		if (this.check_terrain(pos)==true) return;
 			
 		var new_box = new Q.box(pos);
 		var index = this.boxes.push(new_box) - 1;

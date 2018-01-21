@@ -2,7 +2,8 @@ var ratio = 2,
 	map_width=800,
 	map_height=600,
 
-
+	map_width_org = 800,
+	map_height_org = 600,
 	delta_degree=2 * 3.1415926 / 360 * 100,
 
 	color_table = ['super', 'aqua', 'Aquamarine', 'Chartreuse', 'Coral', 'LightCyan', 'LightSlateBlue', 'RoyalBlue', 'Violet', 'VioletRed', 'Purple', 'orange'],
@@ -43,7 +44,8 @@ Q.client_core = Q.core.extend({
 	},
 
 	client_initialize: function (enviroment) {
-		
+		this.loading = true;
+
 		this.game = {
 			socket: enviroment.socket,
 			keyboard: enviroment.keyboard,
@@ -88,6 +90,18 @@ Q.client_core = Q.core.extend({
 		this.game.ctx.font = '13px "Helvetica"';
 		this.game.ctx.scale(ratio,ratio);
 
+		//绘制Loading界面
+		this.game.ctx.save();
+		this.game.ctx.font = '40px "Helvetica"';
+		this.game.ctx.fillStyle = 'white';
+		this.game.ctx.fillText('Loading...',map_width/2-80,map_height/2);
+		this.game.ctx.restore();
+
+		//小地图设置
+		this.minimap_width = this.global_width / this.block_width;
+		this.minimap_height = this.global_height / this.block_height;
+
+		//基本设置
 		this.id = this.game.socket.client_id;
 		this.state.bullets = [];
 		this.state.boxes = [];
@@ -103,6 +117,7 @@ Q.client_core = Q.core.extend({
 		});	//向服务器发送id，颜色和出生位置
 		
 
+		//事件绑定
 		this.game.socket.on('on_server_update', this.client_onserverupdate.bind(this));	//接受服务器端游戏状态并无条件更新
 		
 		this.game.socket.on('new_bullet', this.client_getnewbullet.bind(this));		//接受新的子弹
@@ -116,7 +131,7 @@ Q.client_core = Q.core.extend({
 		this.game.socket.on('player_gameover', this.client_gameover.bind(this));		//玩家死亡
 		this.game.socket.on('new_player', this.client_newplayerjoin.bind(this));
 		this.game.socket.on('player_disconnect', this.client_playerdisconnect.bind(this));
-		Q.gameLoop(this.client_update.bind(this));
+		
 	},
 	
 	client_newplayerjoin: function (state) {
@@ -164,6 +179,7 @@ Q.client_core = Q.core.extend({
 		this.terrain = sur.terrain;
 		this.state.bullets = sur.bullets;
 		this.state.boxes = sur.boxes;
+		Q.gameLoop(this.client_update.bind(this));
 	},
 	
 	client_add_animation: function(type,eff,entity) {
@@ -185,11 +201,6 @@ Q.client_core = Q.core.extend({
 					old:entity.old,
 					last:entity.last,
 					ip_time:0};
-		}
-		else if (eff=='underatk_blood') {
-			anim = {type:type,
-					eff:eff,
-					entity:}
 		}
 		anim.anim_destroyable = false;
 		this.anim_list.push(anim);
@@ -228,10 +239,8 @@ Q.client_core = Q.core.extend({
 
 		//自己受到攻击时的动画
 		if (animation && authority_me)
-			if (Math.abs(authority_me.health.cur-temp[this.id].health.cur)>1) {
+			if (Math.abs(authority_me.health.cur-temp[this.id].health.cur)>1)
 				this.client_add_animation('player','underatk',this.render_list[this.id]);
-				this.client_add_animation('window','underatk_blood');
-			}
 
 		var head = -1;
 		
@@ -305,8 +314,9 @@ Q.client_core = Q.core.extend({
 		msg.input.kb = km;
 
 		//获取鼠标输入
-		msg.input.ms = Math.atan((this.mouse_pos.y - this.mapY) / (this.mouse_pos.x - this.mapX));
-		if (this.mouse_pos.x < this.mapX) msg.input.ms += Math.PI;
+		var s = this.me.sight;
+		msg.input.ms = Math.atan((this.mouse_pos.y * s - this.mapY) / (this.mouse_pos.x * s - this.mapX));
+		if (this.mouse_pos.x * s< this.mapX) msg.input.ms += Math.PI;
 
 		return msg;
 	},
@@ -360,7 +370,7 @@ Q.client_core = Q.core.extend({
 		}
 		ctx.closePath();
 
-
+		ctx.fillStyle = 'rgb(136,136,136)';
 		for (var i = paddingX - this.block_width; i < map_width; i += this.block_width) {
 			block_x = Math.floor((this.me.pos.x - this.mapX + i) / this.block_width);
 			for (var j = paddingY - this.block_height; j < map_height; j += this.block_height) {
@@ -369,7 +379,6 @@ Q.client_core = Q.core.extend({
 				if (this.terrain[block_x]!=undefined) 
 				if (this.terrain[block_x][block_y]!=undefined)
 				if (this.terrain[block_x][block_y]==1) {
-					ctx.fillStyle = 'rgb(136,136,136)';
 					ctx.fillRect(block_x*this.block_width-this.me.pos.x+this.mapX,
 								 block_y*this.block_height-this.me.pos.y+this.mapY,
 								 this.block_width+1,this.block_height+1);
@@ -510,6 +519,27 @@ Q.client_core = Q.core.extend({
 		ctx.restore();
 	},
 	
+	client_render_minimap: function(s) {
+		var ctx = this.game.ctx;
+		ctx.save();
+		ctx.translate(map_width - this.minimap_width * s,map_height - this.minimap_height * s);
+
+		ctx.clearRect(0,0,this.minimap_width,this.minimap_height);
+		ctx.strokeStyle = 'white';
+		ctx.lineWidth = 2;
+		ctx.strokeRect(0,0,this.minimap_width,this.minimap_height);
+		ctx.fillStyle = 'rgb(136,136,136)';
+		for (var i=0;i<this.minimap_width;i++)
+			for (var j=0;j<this.minimap_height;j++)
+				if (this.terrain[i])
+					if (this.terrain[i][j])
+						if (this.terrain[i][j]==1)
+							ctx.fillRect(i,j,1,1);
+		ctx.fillStyle = 'lightgreen';
+		ctx.fillRect(this.me.pos.x/this.block_width,this.me.pos.y/this.block_height,4,4);
+		ctx.restore();
+
+	},
 	//绘制逐帧动画，若为派生动画（如fade-out等实体消亡类型），需描述每一帧并额外调用client_render方法；
 	//			 若为寄生动画（如underatk等寄生于实体类型），只需描述每一帧即可；
 	//所有动画都以anim.anim_destroyable=true结束，外部将销毁此anim对象。
@@ -562,6 +592,11 @@ Q.client_core = Q.core.extend({
 	},
 
 	client_render: function (dt) {
+		var s = this.state.players[this.id].sight;
+		this.game.ctx.scale(1/s,1/s);
+		map_width = map_width_org * s;
+		map_height = map_height_org * s;
+
 		this.game.ctx.clearRect(0, 0, map_width, map_height);
 		
 		this.client_render_background();
@@ -588,6 +623,9 @@ Q.client_core = Q.core.extend({
 			if (!!this.state.boxes[index])
 				this.client_render_box(this.state.boxes[index]);
 		}
+		this.client_render_minimap(s);
+
+		this.game.ctx.scale(s,s);
 	},
 	
 	
