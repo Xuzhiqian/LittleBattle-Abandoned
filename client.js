@@ -465,6 +465,7 @@ Q.client_core = Q.core.extend({
 	
 	client_render_player: function (player) {
 		if (!player) return;
+		if (player.id!=this.id && player.invisible) return;
 
 		var ctx = this.game.ctx;
 		var r = this.render_list[player.id]?(this.render_list[player.id].size || player_size):player_size;
@@ -473,7 +474,9 @@ Q.client_core = Q.core.extend({
 		var health = this.render_list[player.id]?(this.render_list[player.id].health || player.health):player.health;
 
 		ctx.save();
+
 		ctx.globalAlpha = this.render_list[player.id]?(this.render_list[player.id].alpha || 1):1;
+		if (player.invisible) ctx.globalAlpha = 0.25;
 
 			//画布偏移，以玩家为中心
 		ctx.translate(pos.x - this.me.pos.x + this.mapX, pos.y - this.me.pos.y + this.mapY);
@@ -485,9 +488,12 @@ Q.client_core = Q.core.extend({
 			//绘制血槽
 		ctx.strokeStyle = 'white';
 		ctx.lineWidth = 1;
-		var blood = health.cur / health.max;
+		var blood = health.cur / (health.max + player.shield);
+		var shield = player.shield / (health.max + player.shield);
 		ctx.fillStyle = blood<0.41?blood<0.21?'red':'yellow':'lightgreen';		
 		ctx.fillRect(-r, r + 6, blood * 2 * r, 5);
+		ctx.fillStyle = '#FFFFAA';
+		ctx.fillRect(-r+blood*2*r,r+6, shield * 2 *r,5);
 		ctx.strokeRect(-r , r + 6, 2*r, 5);
 
 			//绘制圆形轮廓
@@ -552,7 +558,8 @@ Q.client_core = Q.core.extend({
 		ctx.fillRect(s*this.me.pos.x/this.block_width,s*this.me.pos.y/this.block_height,4,4);
 
 		ctx.fillStyle = 'lightyellow';
-		for (var id in this.state.boxes) {
+		for (var id in this.state.boxes) 
+			if (this.state.boxes[id]) {
 			var p = this.state.boxes[id].pos;
 			ctx.fillRect(s*p.x/this.block_width,s*p.y/this.block_height,4,4);
 		}

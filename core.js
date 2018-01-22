@@ -64,6 +64,7 @@ Q.game_player = function (nickname) {
 		y: Math.floor(Math.random() * global_height)
 	};
 	this.health = {cur: 100, max: 100};
+	this.shield = 0;
 	this.speed = {x: {cur: 0, max: 120, acc: 180}, y: {cur: 0, max: 100, acc: 180}};
 	this.dir = 0;
 	this.color = 0;
@@ -80,6 +81,7 @@ Q.game_player = function (nickname) {
 
 	this.score = 0;
 	this.alpha = 1;
+	this.invisible = false;
 	this.sight = 1;
 };
 

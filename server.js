@@ -7,10 +7,13 @@ var dis = function (a, b) {
 	return Math.sqrt(power2(a.x - b.x) + power2(a.y - b.y));
 };
 
+var rewards = ['heal','maxhealth','faster','accer','lucky','invisible','shield'];
+
 Q.server_core = Q.core.extend({
 	init: function () {
 		this.player_count = 0;
 		this.players = [];
+		this.lucks = [];
 		this.bullets = [];
 		this.boxes = [];
 		this.anim_list = [];
@@ -202,8 +205,12 @@ Q.server_core = Q.core.extend({
 		for (var id in this.players) {
 			var p = this.players[id];
 			if (id != bullet.owner_id)
-				if (dis(bullet.pos, p.pos) < bullet.size + p.size) {
-					p.health.cur -= bullet.damage;
+				if (dis(bullet.pos, p.pos) < bullet.size + p.size) { 
+
+					p.invisible = false;
+					p.health.cur += Math.min(p.shield-bullet.damage,0);
+					p.shield = Math.max(p.shield-bullet.damage,0);
+
 					if (p.health.cur <= 0) {
 						this.server_remove_player(id);
 						this.trigger('player_gameover', {pid: id, kid: bullet.owner_id});
@@ -231,8 +238,52 @@ Q.server_core = Q.core.extend({
 	},
 
 	server_player_reward: function(pid, box) {
-		if (!!this.players[pid]) {
-			this.players[pid].score+=box.health.max/10;
+		if (!this.players[pid]) return;
+		var p = this.players[pid];
+
+		p.score+=box.health.max/10;
+
+		/*
+		var isrd = this.lucks[pid] || 0.4;
+		if (Math.random()>isrd) return;
+		*/
+
+		var c = Math.floor(rewards.length*Math.random());
+		
+		switch (rewards[c]) {
+			case 'heal':
+				p.health.cur = Math.min(p.health.cur+15,p.health.max);
+				break;
+
+			case 'maxhealth':
+				p.health.max = Math.min(p.health.max+10,150);
+				break;
+
+			case 'faster':
+				p.speed.x.max = Math.min(p.speed.x.max + 20, 200);
+				p.speed.y.max = Math.min(p.speed.y.max + 20, 200);
+				break;
+
+			case 'accer':
+				p.speed.x.acc = Math.min(p.speed.x.acc + 40, 340);
+				p.speed.y.acc = Math.min(p.speed.y.acc + 40, 340);
+				break;
+
+			case 'lucky':
+				if (!this.lucks[pid])
+					this.lucks[pid] = 0.5;
+				else
+					this.lucks[pid] = Math.min(this.lucks[pid]+0.1,0.7);
+				break;
+
+			case 'invisible':
+				p.invisible = true;
+				setTimeout((function(){p.invisible=false;}).bind(this),30000);
+				break;
+
+			case 'shield':
+				p.shield += 30;
+				break;
 		}
 	},
 	
