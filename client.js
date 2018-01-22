@@ -179,6 +179,7 @@ Q.client_core = Q.core.extend({
 		this.terrain = sur.terrain;
 		this.state.bullets = sur.bullets;
 		this.state.boxes = sur.boxes;
+		this.client_getminimap();
 		Q.gameLoop(this.client_update.bind(this));
 	},
 	
@@ -342,6 +343,25 @@ Q.client_core = Q.core.extend({
 		this.client_render(dt);
 	},
 	
+	//将小地图保存在this.minimap中
+	client_getminimap: function() {
+		var ctx = this.game.ctx;
+		ctx.clearRect(0,0,this.minimap_width * ratio,this.minimap_height * ratio);
+		ctx.strokeStyle = 'white';
+		ctx.lineWidth = 2;
+		ctx.strokeRect(0,0,this.minimap_width,this.minimap_height);
+		ctx.fillStyle = 'rgb(136,136,136)';
+		for (var i=0;i<this.minimap_width;i++)
+			for (var j=0;j<this.minimap_height;j++)
+				if (this.terrain[i])
+					if (this.terrain[i][j])
+						if (this.terrain[i][j]==1)
+							ctx.fillRect(i,j,1,1);
+						
+		this.minimap = ctx.getImageData(0,0,this.minimap_width * ratio,this.minimap_height * ratio);
+		ctx.clearRect(0,0,this.minimap_width,this.minimap_height);
+	},
+
 	client_render_background: function () {
 		var ctx = this.game.ctx;
 		var me = this.state.players[this.id];
@@ -523,20 +543,19 @@ Q.client_core = Q.core.extend({
 		var ctx = this.game.ctx;
 		ctx.save();
 		ctx.translate(map_width - this.minimap_width * s,map_height - this.minimap_height * s);
+		
 
-		ctx.clearRect(0,0,this.minimap_width,this.minimap_height);
-		ctx.strokeStyle = 'white';
-		ctx.lineWidth = 2;
-		ctx.strokeRect(0,0,this.minimap_width,this.minimap_height);
-		ctx.fillStyle = 'rgb(136,136,136)';
-		for (var i=0;i<this.minimap_width;i++)
-			for (var j=0;j<this.minimap_height;j++)
-				if (this.terrain[i])
-					if (this.terrain[i][j])
-						if (this.terrain[i][j]==1)
-							ctx.fillRect(i,j,1,1);
+		ctx.putImageData(this.minimap,this.game.map.width - this.minimap.width,
+									  this.game.map.height- this.minimap.height);
+			//绘制自身
 		ctx.fillStyle = 'lightgreen';
-		ctx.fillRect(this.me.pos.x/this.block_width,this.me.pos.y/this.block_height,4,4);
+		ctx.fillRect(s*this.me.pos.x/this.block_width,s*this.me.pos.y/this.block_height,4,4);
+
+		ctx.fillStyle = 'lightyellow';
+		for (var id in this.state.boxes) {
+			var p = this.state.boxes[id].pos;
+			ctx.fillRect(s*p.x/this.block_width,s*p.y/this.block_height,4,4);
+		}
 		ctx.restore();
 
 	},

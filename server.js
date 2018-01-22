@@ -34,7 +34,7 @@ Q.server_core = Q.core.extend({
 
 		if (this.active==false) {
 			this.active=true;
-			this.genbox={cur:0,max:60};
+			this.genbox={cur:0,max:120};
 			this.server_generate_terrain();
 		}
 
