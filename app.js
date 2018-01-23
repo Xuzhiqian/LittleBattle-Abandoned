@@ -15,7 +15,7 @@ app.get('/*', function (req, res, next) {
 	
 });
 
-
+sockets = [];
 require("./server.js");
 var core = new Q.server_core();
 core.server_initialize();
@@ -46,6 +46,13 @@ core.bind('delete_box', function (bindex) {
 	io.emit('delete_box', bindex);
 });
 
+core.bind('player_reward',function(reward_info) {
+	for (var id in sockets) {
+		if (sockets[id]!=null && id==reward_info.id)
+			io.emit('player_reward',reward_info.reward);
+	}
+});
+
 core.bind('player_gameover', function (pkid) {
 	io.emit('player_gameover', {id: pkid, count: core.player_count});
 });
@@ -63,6 +70,7 @@ io.on("connection", function (socket) {
 	});
 
 	socket.on('join', function (status) {
+		sockets[status.id] = socket;
 		socket.client_id = status.id;
 		core.server_add_player(status);
 		io.emit('new_player', {id: status.id, count: core.player_count});
@@ -77,6 +85,7 @@ io.on("connection", function (socket) {
 	socket.on("disconnect", function () {
 		if (core.players[socket.client_id] != undefined) {
 			core.server_remove_player(socket.client_id);
+			delete sockets[socket.client_id];
 			io.emit('player_disconnect', {id: socket.client_id, count: core.player_count});
 		}
 	});

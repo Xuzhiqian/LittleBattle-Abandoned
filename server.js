@@ -243,10 +243,9 @@ Q.server_core = Q.core.extend({
 
 		p.score+=box.health.max/10;
 
-		/*
 		var isrd = this.lucks[pid] || 0.4;
 		if (Math.random()>isrd) return;
-		*/
+		
 
 		var c = Math.floor(rewards.length*Math.random());
 		
@@ -283,8 +282,10 @@ Q.server_core = Q.core.extend({
 
 			case 'shield':
 				p.shield += 30;
+				setTimeout((function(){p.shield=Math.max(p.shield-30,0);}).bind(this),30000);
 				break;
 		}
+		this.trigger('player_reward',{id:pid,reward:rewards[c]});
 	},
 	
 	server_handle_inputs: function (msg) {

@@ -126,6 +126,7 @@ Q.client_core = Q.core.extend({
 		this.game.socket.on('new_box', this.client_getnewbox.bind(this));				//接受新的箱子
 		this.game.socket.on('box_underattack', this.client_boxunderattack.bind(this)); 	//箱子扣血
 		this.game.socket.on('delete_box', this.client_deletebox.bind(this));			//删除箱子
+		this.game.socket.on('player_reward',this.client_getreward.bind(this));
 		
 		this.game.socket.on('init_surrounding', this.client_init_sur.bind(this));
 		this.game.socket.on('player_gameover', this.client_gameover.bind(this));		//玩家死亡
@@ -173,6 +174,10 @@ Q.client_core = Q.core.extend({
 		if (animation && this.state.boxes[index])
 			this.client_add_animation('box','fadeout',this.state.boxes[index]);
 		delete this.state.boxes[index];
+	},
+
+	client_getreward: function (reward) {
+
 	},
 
 	client_init_sur: function (sur) {
@@ -492,7 +497,7 @@ Q.client_core = Q.core.extend({
 		var shield = player.shield / (health.max + player.shield);
 		ctx.fillStyle = blood<0.41?blood<0.21?'red':'yellow':'lightgreen';		
 		ctx.fillRect(-r, r + 6, blood * 2 * r, 5);
-		ctx.fillStyle = '#FFFFAA';
+		ctx.fillStyle = '#DDDD99';
 		ctx.fillRect(-r+blood*2*r,r+6, shield * 2 *r,5);
 		ctx.strokeRect(-r , r + 6, 2*r, 5);
 
