@@ -30,6 +30,8 @@ Q.client_core = Q.core.extend({
 
 		this.anim_list = [];
 		this.render_list = [];
+		this.animsg_list = [];
+
 		this.kills = 0;
 		this.terrain=[];
 
@@ -177,7 +179,28 @@ Q.client_core = Q.core.extend({
 	},
 
 	client_getreward: function (reward) {
+		if (animation) {
+			var msg='';
 
+			switch (reward) {
+				'heal':
+					msg = 'Utility Bandage : Health + 15';
+				'maxhealth':
+					msg = 'Magic Tablet : Max Health + 10';
+				'faster':
+					msg = 'Engine Upgrade : Speed + 20';
+				'accer':
+					msg = 'Jet Toolkit : Acceleration + 40';
+				'lucky':
+					msg = 'Lucky Coin : Luck + 10';
+				'invisible':
+					msg = 'Stalker Cloak : Invisible for 30s';
+				'shield':
+					msg = 'Fearless Shield : Gain 30 armor for 30s';
+			}
+			var index = this.animsg_list.push('')
+			this.client_add_animation('message','reward')
+		}
 	},
 
 	client_init_sur: function (sur) {
