@@ -183,23 +183,23 @@ Q.client_core = Q.core.extend({
 			var msg='';
 
 			switch (reward) {
-				'heal':
-					msg = 'Utility Bandage : Health + 15';
-				'maxhealth':
-					msg = 'Magic Tablet : Max Health + 10';
-				'faster':
-					msg = 'Engine Upgrade : Speed + 20';
-				'accer':
-					msg = 'Jet Toolkit : Acceleration + 40';
-				'lucky':
-					msg = 'Lucky Coin : Luck + 10';
-				'invisible':
-					msg = 'Stalker Cloak : Invisible for 30s';
-				'shield':
-					msg = 'Fearless Shield : Gain 30 armor for 30s';
+				case 'heal':
+					msg = 'Utility Bandage : Health + 15'; break;
+				case 'maxhealth':
+					msg = 'Magic Tablet : Max Health + 10'; break;
+				case 'faster':
+					msg = 'Engine Upgrade : Speed + 20'; break;
+				case 'accer':
+					msg = 'Jet Toolkit : Acceleration + 40'; break;
+				case 'lucky':
+					msg = 'Lucky Coin : Luck + 10'; break;
+				case'invisible':
+					msg = "Stalker's Cloak : Invisible for 30s"; break;
+				case 'shield':
+					msg = 'Fearless Shield : Gain 30 armor for 30s'; break;
 			}
-			var index = this.animsg_list.push('')
-			this.client_add_animation('message','reward')
+			var index = this.animsg_list.push({text:msg,alpha:0,displayed:false}) -1;
+			this.client_add_animation('system','message',this.animsg_list[index]);
 		}
 	},
 
@@ -230,6 +230,14 @@ Q.client_core = Q.core.extend({
 					old:entity.old,
 					last:entity.last,
 					ip_time:0};
+		}
+		else if (eff=='message') {
+			anim = {type:type,
+					eff:eff,
+					entity:entity,
+					fading:false,
+					lasting:false,
+					ondisplay:false};
 		}
 		anim.anim_destroyable = false;
 		this.anim_list.push(anim);
@@ -572,6 +580,36 @@ Q.client_core = Q.core.extend({
 		}
 		ctx.restore();
 	},
+
+	client_render_animsg: function () {
+		var ctx = this.game.ctx;
+		ctx.save();
+
+		for (var index in this.animsg_list)
+			if (!!this.animsg_list[index]) {
+				if (this.animsg_list[index].alpha<0) {
+					delete this.animsg_list[index];
+					break;
+				}
+				this.animsg_list[index].displayed = true;
+
+				ctx.globalAlpha = this.animsg_list[index].alpha;
+
+				ctx.font = '22px "Helvetica"';
+				ctx.strokeStyle = 'white';
+				ctx.lineWidth = 4;
+				ctx.strokeRect(-100,2,map_width+100,80);
+
+				ctx.fillStyle = '#BEBEBE';
+				ctx.fillRect(-100,2,map_width+100,80);
+
+				ctx.fillStyle = '#FFFFCE';
+				ctx.fillText(this.animsg_list[index].text,30,50);
+
+				break;
+			}
+		ctx.restore();
+	},
 	
 	client_render_minimap: function(s) {
 		var ctx = this.game.ctx;
@@ -585,6 +623,7 @@ Q.client_core = Q.core.extend({
 		ctx.fillStyle = 'lightgreen';
 		ctx.fillRect(s*this.me.pos.x/this.block_width,s*this.me.pos.y/this.block_height,4,4);
 
+			//绘制资源
 		ctx.fillStyle = 'lightyellow';
 		for (var id in this.state.boxes) 
 			if (this.state.boxes[id]) {
@@ -594,9 +633,11 @@ Q.client_core = Q.core.extend({
 		ctx.restore();
 
 	},
+
 	//绘制逐帧动画，若为派生动画（如fade-out等实体消亡类型），需描述每一帧并额外调用client_render方法；
 	//			 若为寄生动画（如underatk等寄生于实体类型），只需描述每一帧即可；
-	//所有动画都以anim.anim_destroyable=true结束，外部将销毁此anim对象。
+	//			 若为系统动画（如interpolation等), 需要描述每一帧并加入相关绘制实体(entity)，实体消除在内部实现；
+	//所有动画都以anim.anim_destroyable=true结束，外部将以此销毁anim对象。
 	client_render_animation: function (anim,dt) {
 		if (!anim) return;
 		if (anim.eff==='fadeout') {
@@ -643,6 +684,30 @@ Q.client_core = Q.core.extend({
 			anim.entity.dir = lerp(o.dir,l.dir,k);
 			anim.ip_time += dt;
 		}
+
+		if (anim.eff==='message') {
+			if (!anim.entity.displayed) return;
+
+			if (anim.entity.alpha<0) {
+				anim.anim_destroyable = true;
+				return;
+			}
+			if (anim.lasting) anim.count+=1;
+
+			anim.entity.alpha += anim.fading?-0.01:0.05;
+			if (anim.lasting) anim.entity.alpha = 0.8;
+
+			if (anim.entity.alpha>0.8) {
+				anim.entity.alpha = 0.8;
+				anim.lasting = true;
+				anim.count = 0;
+			}
+
+			if (anim.lasting && anim.count>200) {
+				anim.fading = true;
+				anim.lasting = false;
+			}
+		}
 	},
 
 	client_render: function (dt) {
@@ -678,6 +743,7 @@ Q.client_core = Q.core.extend({
 				this.client_render_box(this.state.boxes[index]);
 		}
 		this.client_render_minimap(s);
+		this.client_render_animsg();
 
 		this.game.ctx.scale(s,s);
 	},
