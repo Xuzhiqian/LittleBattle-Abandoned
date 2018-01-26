@@ -1,3 +1,5 @@
+if ('undefined' != typeof global)
+	var _ = require("underscore");
 (function () {
 	var initializing = false,
 		fnTest = /xyz/.test(function () {
@@ -88,7 +90,6 @@
 			clearTimeout(id);
 		};
 }());
-
 
 var Quisus = function () {
 	var Q = {};
@@ -290,4 +291,5 @@ var Quisus = function () {
 	
 	return Q;
 }
-module.exports = Quisus;
+if ('undefined' != typeof global)
+	module.exports = Quisus;

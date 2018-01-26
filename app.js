@@ -38,6 +38,14 @@ core.bind('new_box', function (box) {
 	io.emit('new_box', box);
 });
 
+core.bind('new_weapon', function (wpn) {
+	io.emit('new_weapon', wpn);
+});
+
+core.bind('delete_weapon', function (windex) {
+	io.emit('delete_weapon',windex);
+});
+
 core.bind('box_underattack', function(info) {
 	io.emit('box_underattack',info);
 });
@@ -49,7 +57,7 @@ core.bind('delete_box', function (bindex) {
 core.bind('player_reward',function(reward_info) {
 	for (var id in sockets) {
 		if (sockets[id]!=null && id==reward_info.id)
-			io.emit('player_reward',reward_info.reward);
+			sockets[id].emit('player_reward',reward_info.reward);
 	}
 });
 

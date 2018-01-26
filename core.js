@@ -57,8 +57,38 @@ var player_cmp = function (x, y) {
 };
 
 var player_size = 15;
+/*
 Q.game_player = function (nickname) {
 	this.id = nickname;
+	this.pos = {
+		x: Math.floor(Math.random() * global_width),
+		y: Math.floor(Math.random() * global_height)
+	};
+	this.health = {cur: 100, max: 100};
+	this.shield = 0;
+	this.speed = {x: {cur: 0, max: 120, acc: 180}, y: {cur: 0, max: 120, acc: 180}};
+	this.dir = 0;
+	this.color = 0;
+	this.size = player_size;
+	
+	this.bullet_prop={
+		speed : 240,
+		reload : 0.6,
+		bias : 0.1,
+		life : 5,
+		damage : 10,
+		bounce : false
+	};
+
+	this.score = 0;
+	this.alpha = 1;
+	this.invisible = false;
+	this.sight = 1;
+};*/
+
+Q.game_player = Q.GameObject.extend({
+	init:function(nickname) {
+		this.id = nickname;
 	this.pos = {
 		x: Math.floor(Math.random() * global_width),
 		y: Math.floor(Math.random() * global_height)
@@ -83,7 +113,8 @@ Q.game_player = function (nickname) {
 	this.alpha = 1;
 	this.invisible = false;
 	this.sight = 1;
-};
+	}
+});
 
 var bullet_size = 5;
 Q.bullet = function (p) {
@@ -122,6 +153,11 @@ Q.box.prototype.update = function(dt) {
 	if (this.life.cur>this.life.max)
 		this.destroyable = true;
 };
+
+Q.weapon = function (pos,id) {
+	this.pos = {x:pos.x,y:pos.y};
+	this.id = id;
+}
 
 Q.core = Q.Evented.extend({
 	global_width:global_width,
@@ -258,7 +294,6 @@ Q.core = Q.Evented.extend({
 		return true;
 	}
 });
-
 
 if ('undefined' != typeof global)
 	module.exports = global.Q = Q;

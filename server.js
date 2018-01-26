@@ -7,7 +7,8 @@ var dis = function (a, b) {
 	return Math.sqrt(power2(a.x - b.x) + power2(a.y - b.y));
 };
 
-var rewards = ['heal','maxhealth','faster','accer','lucky','invisible','shield'];
+var rewards = ['heal','heal','maxhealth','faster','accer','accer','lucky','invisible','shield','shield'];
+var weapons = ['UMP9','Micro_Uzi','Vector','AKM','Groza','M16A4','Scar-L','M416','Kar-98K','SKS','AWM','MK14','M249','Minigun','Dominator-77'];
 
 Q.server_core = Q.core.extend({
 	init: function () {
@@ -16,6 +17,7 @@ Q.server_core = Q.core.extend({
 		this.lucks = [];
 		this.bullets = [];
 		this.boxes = [];
+		this.weapons = [];
 		this.anim_list = [];
 		this.terrain = [];
 		this.inputs = [];
@@ -38,6 +40,7 @@ Q.server_core = Q.core.extend({
 		if (this.active==false) {
 			this.active=true;
 			this.genbox={cur:0,max:120};
+			this.genwpn={cur:0,max:100};
 			this.server_generate_terrain();
 		}
 
@@ -130,6 +133,18 @@ Q.server_core = Q.core.extend({
 		this.trigger('new_box', {box:new_box, index:index});
 	},
 
+	server_generate_weapon: function() {
+		var pos = {
+				x: Math.floor(Math.random() * this.global_width),
+				y: Math.floor(Math.random() * this.global_height)
+			};
+		if (this.check_terrain(pos)==true) return;
+
+		var new_wpn = new Q.weapon(pos,weapons[Math.floor(Math.random()*weapons.length)]);
+		var index = this.weapons.push(new_wpn) - 1;
+		this.trigger('new_weapon',{weapon:new_wpn, index:index});
+	},
+
 	server_new_bullet: function (player) {
 		var new_bullet = new Q.bullet(player);
 		var index = this.bullets.push(new_bullet) - 1;
@@ -145,6 +160,11 @@ Q.server_core = Q.core.extend({
 		delete this.boxes[index];
 		this.trigger('delete_box',index);
 	},
+
+	server_delete_weapon: function (index) {
+		delete this.weapons[index];
+		this.trigger('delete_weapon',index);
+	},
 	
 	server_update: function (dt) {
 		if (!this.active) return;
@@ -156,9 +176,17 @@ Q.server_core = Q.core.extend({
 			this.genbox.max+=1;
 		}
 
+		this.genwpn.cur+=1;
+		if (this.genwpn.cur>=this.genwpn.max) {
+			this.server_generate_weapon();
+			this.genwpn.cur=0;
+			this.genwpn.max+=1;
+		}
+
 		this.server_update_players(dt);
 		this.server_update_bullets(dt);
 		this.server_update_boxes(dt);
+
 	},
 	
 	server_update_players: function(dt) {
@@ -168,12 +196,13 @@ Q.server_core = Q.core.extend({
 				for (var unit_index in this.inputs[id]) {
 					var msg = this.inputs[id][unit_index];
 					
-					this.process_inputs(this.players[id], msg.input, dt);
-					if (msg.input.kb.indexOf('j') != -1)
+					this.process_inputs(this.players[id], msg.input, msg.dt);
+					if (msg.input.kb.indexOf('j') !== -1)
 						this.server_new_bullet(this.players[id]);
+					if (msg.input.kb.indexOf('f') !== -1)
+						this.server_player_use(id);
 					
 					this.seqs[id] = msg.seq;
-					
 				}
 				this.inputs[id] = [];
 				
@@ -199,6 +228,18 @@ Q.server_core = Q.core.extend({
 				b.update(dt);
 				if (b.destroyable==true) this.server_delete_box(index);
 			}
+	},
+
+	server_player_use: function (pid) {
+		for (var index in this.weapons) {
+			var w = this.weapons[index];
+			if (w!=null)
+				if (dis(this.players[pid].pos,w.pos)<10) {
+					this.players[pid].add(w.id);
+					this.server_delete_weapon(index);
+					break;
+				}
+		}
 	},
 
 	server_bullet_check_hit: function (bullet) {
@@ -243,37 +284,38 @@ Q.server_core = Q.core.extend({
 
 		p.score+=box.health.max/10;
 
-		
+		/*
 		var isrd = this.lucks[pid] || 0.4;
 		if (Math.random()>isrd) return;
+		*/
 		
 
 		var c = Math.floor(rewards.length*Math.random());
 		
 		switch (rewards[c]) {
 			case 'heal':
-				p.health.cur = Math.min(p.health.cur+15,p.health.max);
+				p.health.cur = Math.min(p.health.cur+10,p.health.max);
 				break;
 
 			case 'maxhealth':
-				p.health.max = Math.min(p.health.max+10,150);
+				p.health.max = Math.min(p.health.max+5,150);
 				break;
 
 			case 'faster':
-				p.speed.x.max = Math.min(p.speed.x.max + 20, 200);
-				p.speed.y.max = Math.min(p.speed.y.max + 20, 200);
+				p.speed.x.max = Math.min(p.speed.x.max + 10, 160);
+				p.speed.y.max = Math.min(p.speed.y.max + 10, 160);
 				break;
 
 			case 'accer':
-				p.speed.x.acc = Math.min(p.speed.x.acc + 40, 340);
-				p.speed.y.acc = Math.min(p.speed.y.acc + 40, 340);
+				p.speed.x.acc = Math.min(p.speed.x.acc + 20, 300);
+				p.speed.y.acc = Math.min(p.speed.y.acc + 20, 300);
 				break;
 
 			case 'lucky':
 				if (!this.lucks[pid])
 					this.lucks[pid] = 0.5;
 				else
-					this.lucks[pid] = Math.min(this.lucks[pid]+0.1,0.7);
+					this.lucks[pid] = Math.min(this.lucks[pid]+0.05,0.7);
 				break;
 
 			case 'invisible':
@@ -325,3 +367,244 @@ Q.server_core = Q.core.extend({
 	}
 	
 });
+
+
+this.bullet_prop={
+		speed : 240,
+		reload : 0.6,
+		bias : 0.1,
+		life : 5,
+		damage : 10,
+		bounce : false
+	};
+
+//冲锋枪
+Q.register('UMP9',{
+	added:function() {
+		this.bullet_prop_org = this.entity.bullet_prop;
+		this.entity.bullet_prop = {
+			speed : 270,
+			reload : 0.3,
+			bias : 0.08,
+			life : 6,
+			damage : 6,
+			bounce : false
+		};
+	},
+	destroyed:function() {this.entity.bullet_prop = this.bullet_prop_org;}
+});
+
+Q.register('Micro_Uzi',{
+	added:function() {
+		this.bullet_prop_org = this.entity.bullet_prop;
+		this.entity.bullet_prop = {
+			speed : 280,
+			reload : 0.1,
+			bias : 0.05,
+			life : 7,
+			damage : 2,
+			bounce : false
+		};
+	},
+	destroyed:function() {this.entity.bullet_prop = this.bullet_prop_org;}
+});
+
+Q.register('Vector',{
+	added:function() {
+		this.bullet_prop_org = this.entity.bullet_prop;
+		this.entity.bullet_prop = {
+			speed : 290,
+			reload : 0.2,
+			bias : 0.08,
+			life : 5,
+			damage : 5,
+			bounce : false
+		};
+	},
+	destroyed:function() {this.entity.bullet_prop = this.bullet_prop_org;}
+});
+
+//突击步枪
+Q.register('AKM',{
+	added:function() {
+		this.bullet_prop_org = this.entity.bullet_prop;
+		this.entity.bullet_prop = {
+			speed : 300,
+			reload : 0.25,
+			bias : 0.15,
+			life : 8,
+			damage : 10,
+			bounce : false
+		};
+	},
+	destroyed:function() {this.entity.bullet_prop = this.bullet_prop_org;}
+});
+
+Q.register('Groza',{
+	added:function() {
+		this.bullet_prop_org = this.entity.bullet_prop;
+		this.entity.bullet_prop = {
+			speed : 290,
+			reload : 0.22,
+			bias : 0.1,
+			life : 8,
+			damage : 10,
+			bounce : false
+		};
+	},
+	destroyed:function() {this.entity.bullet_prop = this.bullet_prop_org;}
+});
+
+Q.register('M16A4',{
+	added:function() {
+		this.bullet_prop_org = this.entity.bullet_prop;
+		this.entity.bullet_prop = {
+			speed : 300,
+			reload : 0.24,
+			bias : 0.12,
+			life : 7,
+			damage : 8,
+			bounce : false
+		};
+	},
+	destroyed:function() {this.entity.bullet_prop = this.bullet_prop_org;}
+});
+
+Q.register('Scar-L',{
+	added:function() {
+		this.bullet_prop_org = this.entity.bullet_prop;
+		this.entity.bullet_prop = {
+			speed : 310,
+			reload : 0.23,
+			bias : 0.08,
+			life : 6,
+			damage : 7,
+			bounce : false
+		};
+	},
+	destroyed:function() {this.entity.bullet_prop = this.bullet_prop_org;}
+});
+
+Q.register('M416',{
+	added:function() {
+		this.bullet_prop_org = this.entity.bullet_prop;
+		this.entity.bullet_prop = {
+			speed : 330,
+			reload : 0.26,
+			bias : 0.08,
+			life : 6,
+			damage : 10,
+			bounce : false
+		};
+	},
+	destroyed:function() {this.entity.bullet_prop = this.bullet_prop_org;}
+});
+
+//狙击步枪
+Q.register('Kar-98K',{
+	added:function() {
+		this.bullet_prop_org = this.entity.bullet_prop;
+		this.entity.bullet_prop = {
+			speed : 400,
+			reload : 1.2,
+			bias : 0.04,
+			life : 12,
+			damage : 50,
+			bounce : false
+		};
+	},
+	destroyed:function() {this.entity.bullet_prop = this.bullet_prop_org;}
+});
+
+Q.register('SKS',{
+	added:function() {
+		this.bullet_prop_org = this.entity.bullet_prop;
+		this.entity.bullet_prop = {
+			speed : 380,
+			reload : 1.2,
+			bias : 0.03,
+			life : 13,
+			damage : 45,
+			bounce : false
+		};
+	},
+	destroyed:function() {this.entity.bullet_prop = this.bullet_prop_org;}
+});
+
+Q.register('AWM',{
+	added:function() {
+		this.bullet_prop_org = this.entity.bullet_prop;
+		this.entity.bullet_prop = {
+			speed : 410,
+			reload : 1.5,
+			bias : 0.02,
+			life : 13,
+			damage : 60,
+			bounce : false
+		};
+	},
+	destroyed:function() {this.entity.bullet_prop = this.bullet_prop_org;}
+});
+
+Q.register('MK14',{
+	added:function() {
+		this.bullet_prop_org = this.entity.bullet_prop;
+		this.entity.bullet_prop = {
+			speed : 400,
+			reload : 0.8,
+			bias : 0.03,
+			life : 12,
+			damage : 50,
+			bounce : false
+		};
+	},
+	destroyed:function() {this.entity.bullet_prop = this.bullet_prop_org;}
+});
+
+//轻机枪
+Q.register('M249',{
+	added:function() {
+		this.bullet_prop_org = this.entity.bullet_prop;
+		this.entity.bullet_prop = {
+			speed : 380,
+			reload : 0.12,
+			bias : 0.05,
+			life : 12,
+			damage : 10,
+			bounce : false
+		};
+	},
+	destroyed:function() {this.entity.bullet_prop = this.bullet_prop_org;}
+});
+
+Q.register('Minigun',{
+	added:function() {
+		this.bullet_prop_org = this.entity.bullet_prop;
+		this.entity.bullet_prop = {
+			speed : 400,
+			reload : 0.11,
+			bias : 0.04,
+			life : 10,
+			damage : 8,
+			bounce : false
+		};
+	},
+	destroyed:function() {this.entity.bullet_prop = this.bullet_prop_org;}
+});
+
+//重机枪
+Q.register('Dominator-77',{
+	added:function() {
+		this.bullet_prop_org = this.entity.bullet_prop;
+		this.entity.bullet_prop = {
+			speed : 440,
+			reload : 0.12,
+			bias : 0.1,
+			life : 15,
+			damage : 10,
+			bounce : false
+		};
+	},
+	destroyed:function() {this.entity.bullet_prop = this.bullet_prop_org;}
+});
+

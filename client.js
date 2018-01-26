@@ -106,6 +106,7 @@ Q.client_core = Q.core.extend({
 		//基本设置
 		this.id = this.game.socket.client_id;
 		this.state.bullets = [];
+		this.state.weapons = [];
 		this.state.boxes = [];
 		this.state.players = [];
 		this.state.players[this.id] = new Q.game_player(this.id);
@@ -128,7 +129,10 @@ Q.client_core = Q.core.extend({
 		this.game.socket.on('new_box', this.client_getnewbox.bind(this));				//接受新的箱子
 		this.game.socket.on('box_underattack', this.client_boxunderattack.bind(this)); 	//箱子扣血
 		this.game.socket.on('delete_box', this.client_deletebox.bind(this));			//删除箱子
-		this.game.socket.on('player_reward',this.client_getreward.bind(this));
+		this.game.socket.on('player_reward',this.client_getreward.bind(this));			
+
+		this.game.socket.on('new_weapon', this.client_getnewweapon.bind(this));			
+		this.game.socket.on('delete_weapon',this.client_deleteweapon.bind(this));
 		
 		this.game.socket.on('init_surrounding', this.client_init_sur.bind(this));
 		this.game.socket.on('player_gameover', this.client_gameover.bind(this));		//玩家死亡
@@ -149,14 +153,21 @@ Q.client_core = Q.core.extend({
 	},
 	
 	client_getnewbullet: function (new_bullet) {
-		//新增bullet
 		this.state.bullets[new_bullet.index] = new_bullet.bullet;
+	},
+
+	client_getnewweapon: function (new_wpn) {
+		this.state.weapons[new_wpn.index] = new_wpn.weapon;
 	},
 	
 	client_deletebullet: function (index) {
 		if (animation && this.state.bullets[index])
 			this.client_add_animation('bullet','fadeout',this.state.bullets[index]);
 		delete this.state.bullets[index];
+	},
+
+	client_deleteweapon: function (index) {
+		delete this.state.weapons[index];
 	},
 
 	client_getnewbox: function (new_box) {
@@ -184,15 +195,15 @@ Q.client_core = Q.core.extend({
 
 			switch (reward) {
 				case 'heal':
-					msg = 'Utility Bandage : Health + 15'; break;
+					msg = 'Utility Bandage : Health + 10'; break;
 				case 'maxhealth':
-					msg = 'Magic Tablet : Max Health + 10'; break;
+					msg = 'Magic Tablet : Max Health + 5'; break;
 				case 'faster':
-					msg = 'Engine Upgrade : Speed + 20'; break;
+					msg = 'Engine Upgrade : Speed + 10'; break;
 				case 'accer':
-					msg = 'Jet Toolkit : Acceleration + 40'; break;
+					msg = 'Jet Toolkit : Acceleration + 20'; break;
 				case 'lucky':
-					msg = 'Lucky Coin : Luck + 10'; break;
+					msg = 'Lucky Coin : Luck + 5'; break;
 				case'invisible':
 					msg = "Stalker's Cloak : Invisible for 30s"; break;
 				case 'shield':
@@ -323,11 +334,12 @@ Q.client_core = Q.core.extend({
 			}
 	},
 
-	client_capture_input: function() {
+	client_capture_input: function(dt) {
 		var msg = {
 			input: {kb: '', ms: 0},
 			id: this.id,
-			seq: this.seq
+			seq: this.seq,
+			dt:(dt>0)?dt:0.016
 		};
 		kb = this.game.keyboard;
 		
@@ -340,6 +352,7 @@ Q.client_core = Q.core.extend({
 		if (kb.pressed('S')) km = km + 's';
 		if (kb.pressed('A')) km = km + 'a';
 		if (kb.pressed('D')) km = km + 'd';
+		if (kb.pressed('F')) km = km + 'f';
 		if (this.is_mouseclicked && this.can_atk) {
 			km = km + 'j';
 			this.can_atk = false;
@@ -368,7 +381,7 @@ Q.client_core = Q.core.extend({
 	},
 
 	client_update: function (dt) {
-		var msg = this.client_capture_input();
+		var msg = this.client_capture_input(dt);
 		
 		this.game.socket.emit('client_input', msg);			//向服务器发送操作
 		this.client_predict(msg, dt);
@@ -470,6 +483,21 @@ Q.client_core = Q.core.extend({
 		ctx.fillStyle = blood<0.41?blood<0.21?'red':'yellow':'lightgreen';								
 		ctx.fillRect(-r, r + 6, blood * 2 * r, 5);
 		ctx.strokeRect(-r , r + 6, 2*r, 5);
+
+		ctx.restore();
+	},
+
+	client_render_weapon:function (weapon) {
+		if (!weapon) return;
+
+		var ctx = this.game.ctx;
+
+		ctx.save();
+
+		ctx.translate(weapon.pos.x - this.me.pos.x + this.mapX, weapon.pos.y - this.me.pos.y + this.mapY);
+		ctx.font = '17px "Helvetica"';
+		ctx.fillStyle = 'gold';
+		ctx.fillText(weapon.id,0,0);
 
 		ctx.restore();
 	},
@@ -741,6 +769,10 @@ Q.client_core = Q.core.extend({
 		for (var index in this.state.boxes) {
 			if (!!this.state.boxes[index])
 				this.client_render_box(this.state.boxes[index]);
+		}
+		for (var index in this.state.weapons) {
+			if (!!this.state.weapons[index])
+				this.client_render_weapon(this.state.weapons[index]);
 		}
 		this.client_render_minimap(s);
 		this.client_render_animsg();
