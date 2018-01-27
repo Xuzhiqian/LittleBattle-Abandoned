@@ -89,12 +89,12 @@ Q.client_core = Q.core.extend({
 		this.game.map.width = map_width*ratio;
 		this.game.map.height = map_height*ratio;
 		this.game.map.style="width:"+map_width+"px;height:"+map_height+"px;";
-		this.game.ctx.font = '13px "Helvetica"';
+		this.game.ctx.font = '13px "Futura';
 		this.game.ctx.scale(ratio,ratio);
 
 		//绘制Loading界面
 		this.game.ctx.save();
-		this.game.ctx.font = '40px "Helvetica"';
+		this.game.ctx.font = '40px "Futura';
 		this.game.ctx.fillStyle = 'white';
 		this.game.ctx.fillText('Loading...',map_width/2-80,map_height/2);
 		this.game.ctx.restore();
@@ -495,7 +495,7 @@ Q.client_core = Q.core.extend({
 		ctx.save();
 
 		ctx.translate(weapon.pos.x - this.me.pos.x + this.mapX, weapon.pos.y - this.me.pos.y + this.mapY);
-		ctx.font = '17px "Helvetica"';
+		ctx.font = '17px "Futura';
 		ctx.fillStyle = 'gold';
 		ctx.fillText(weapon.id,0,0);
 
@@ -589,11 +589,11 @@ Q.client_core = Q.core.extend({
 		var ctx = this.game.ctx;
 		ctx.save();
 		
-		ctx.font = '23px "Helvetica"';
+		ctx.font = '23px "Futura';
 		ctx.fillStyle = 'white';
-		ctx.fillText(this.kills + ' Killed  ' + this.player_count + ' Alive', map_width - 165, 30);
+		ctx.fillText(this.kills + ' Killed  ' + this.player_count + ' Alive', map_width - 180, 30);
 		
-		ctx.font = '15px "Helvetica"';
+		ctx.font = '15px "Futura';
 		for (var i = 0; i < this.messages.length; i++) {
 			var index = (i + this.messages.tail) % this.messages.length;
 			if (this.messages.text[index] !== undefined) {
@@ -623,7 +623,7 @@ Q.client_core = Q.core.extend({
 
 				ctx.globalAlpha = this.animsg_list[index].alpha;
 
-				ctx.font = '22px "Helvetica"';
+				ctx.font = '22px "Futura';
 				ctx.strokeStyle = 'white';
 				ctx.lineWidth = 4;
 				ctx.strokeRect(-100,2,map_width+100,80);
