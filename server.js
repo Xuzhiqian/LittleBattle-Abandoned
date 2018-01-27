@@ -7,8 +7,7 @@ var dis = function (a, b) {
 	return Math.sqrt(power2(a.x - b.x) + power2(a.y - b.y));
 };
 
-var rewards = ['heal','heal','maxhealth','faster','accer','accer','lucky','invisible','shield','shield'];
-var weapons = ['UMP9','Micro_Uzi','Vector','AKM','Groza','M16A4','Scar-L','M416','Kar-98K','SKS','AWM','MK14','M249','Minigun','Dominator-77'];
+var rewards = ['heal','heal','maxhealth','faster','accer','accer','lucky','invisible','shield','shield','radar'];
 
 Q.server_core = Q.core.extend({
 	init: function () {
@@ -197,8 +196,15 @@ Q.server_core = Q.core.extend({
 					var msg = this.inputs[id][unit_index];
 					
 					this.process_inputs(this.players[id], msg.input, msg.dt);
-					if (msg.input.kb.indexOf('j') !== -1)
+					if (msg.input.kb.indexOf('j') !== -1) {
+						if (this.players[id].isArmed()) {
+							if (this.players[id].ammo>0)
+								this.players[id].ammo-=1;
+							else 
+								this.players[id].unequip();
+						}
 						this.server_new_bullet(this.players[id]);
+					}
 					if (msg.input.kb.indexOf('f') !== -1)
 						this.server_player_use(id);
 					
@@ -234,8 +240,8 @@ Q.server_core = Q.core.extend({
 		for (var index in this.weapons) {
 			var w = this.weapons[index];
 			if (w!=null)
-				if (dis(this.players[pid].pos,w.pos)<10) {
-					this.players[pid].add(w.id);
+				if (dis(this.players[pid].pos,w.pos)<this.players[pid].size) {
+					this.players[pid].equip(w.id);
 					this.server_delete_weapon(index);
 					break;
 				}
@@ -278,6 +284,7 @@ Q.server_core = Q.core.extend({
 		}
 	},
 
+
 	server_player_reward: function(pid, box) {
 		if (!this.players[pid]) return;
 		var p = this.players[pid];
@@ -285,7 +292,7 @@ Q.server_core = Q.core.extend({
 		p.score+=box.health.max/10;
 
 		/*
-		var isrd = this.lucks[pid] || 0.4;
+		var isrd = this.lucks[pid] || 0.2;
 		if (Math.random()>isrd) return;
 		*/
 		
@@ -313,9 +320,9 @@ Q.server_core = Q.core.extend({
 
 			case 'lucky':
 				if (!this.lucks[pid])
-					this.lucks[pid] = 0.5;
+					this.lucks[pid] = 0.25;
 				else
-					this.lucks[pid] = Math.min(this.lucks[pid]+0.05,0.7);
+					this.lucks[pid] = Math.min(this.lucks[pid]+0.05,0.5);
 				break;
 
 			case 'invisible':
@@ -326,6 +333,11 @@ Q.server_core = Q.core.extend({
 			case 'shield':
 				p.shield += 30;
 				setTimeout((function(){p.shield=Math.max(p.shield-30,0);}).bind(this),30000);
+				break;
+
+			case 'radar':
+				p.radar = true;
+				setTimeout((function(){p.radar=false;}).bind(this),10000);
 				break;
 		}
 		this.trigger('player_reward',{id:pid,reward:rewards[c]});
@@ -368,243 +380,220 @@ Q.server_core = Q.core.extend({
 	
 });
 
-
-this.bullet_prop={
-		speed : 240,
-		reload : 0.6,
-		bias : 0.1,
-		life : 5,
-		damage : 10,
-		bounce : false
-	};
+var weapons = ['UMP9','UMP9','UMP9',
+			   'Micro_Uzi','Micro_Uzi',
+			   'Vector','Vector',
+			   'AKM','AKM',
+			   'Groza',
+			   'M16A4','M16A4','M16A4',
+			   'Scar-L','Scar-L',
+			   'M416','M416',
+			   'Kar-98K','Kar-98K',
+			   'SKS','SKS',
+			   'AWM',
+			   'MK14','MK14',
+			   'M249','M249',
+			   'Minigun','Minigun',
+			   'Dominator-77',
+			   'PF89'];
+Q.weapon_data = [];
+Q.weapon_ammo = [];
 
 //冲锋枪
-Q.register('UMP9',{
-	added:function() {
-		this.bullet_prop_org = this.entity.bullet_prop;
-		this.entity.bullet_prop = {
+Q.weapon_data['UMP9']={
 			speed : 270,
 			reload : 0.3,
 			bias : 0.08,
 			life : 6,
 			damage : 6,
+			recoil : 2,
+			penetrate : false,
 			bounce : false
 		};
-	},
-	destroyed:function() {this.entity.bullet_prop = this.bullet_prop_org;}
-});
+Q.weapon_ammo['UMP9']=30;
 
-Q.register('Micro_Uzi',{
-	added:function() {
-		this.bullet_prop_org = this.entity.bullet_prop;
-		this.entity.bullet_prop = {
+Q.weapon_data['Micro_Uzi']={
 			speed : 280,
 			reload : 0.1,
 			bias : 0.05,
 			life : 7,
 			damage : 2,
+			recoil : 2,
+			penetrate : false,
 			bounce : false
 		};
-	},
-	destroyed:function() {this.entity.bullet_prop = this.bullet_prop_org;}
-});
+Q.weapon_ammo['Micro_Uzi']=90;
 
-Q.register('Vector',{
-	added:function() {
-		this.bullet_prop_org = this.entity.bullet_prop;
-		this.entity.bullet_prop = {
+Q.weapon_data['Vector']={
 			speed : 290,
 			reload : 0.2,
 			bias : 0.08,
 			life : 5,
 			damage : 5,
+			recoil : 1,
+			penetrate : false,
 			bounce : false
 		};
-	},
-	destroyed:function() {this.entity.bullet_prop = this.bullet_prop_org;}
-});
+Q.weapon_ammo['Vector']=50;
 
 //突击步枪
-Q.register('AKM',{
-	added:function() {
-		this.bullet_prop_org = this.entity.bullet_prop;
-		this.entity.bullet_prop = {
+Q.weapon_data['AKM']={
 			speed : 300,
 			reload : 0.25,
 			bias : 0.15,
 			life : 8,
-			damage : 10,
+			damage : 15,
+			recoil : 5,
+			penetrate : false,
 			bounce : false
 		};
-	},
-	destroyed:function() {this.entity.bullet_prop = this.bullet_prop_org;}
-});
+Q.weapon_ammo['AKM']=30;
 
-Q.register('Groza',{
-	added:function() {
-		this.bullet_prop_org = this.entity.bullet_prop;
-		this.entity.bullet_prop = {
+Q.weapon_data['Groza']={
 			speed : 290,
 			reload : 0.22,
 			bias : 0.1,
 			life : 8,
 			damage : 10,
+			recoil : 1,
+			penetrate : false,
 			bounce : false
 		};
-	},
-	destroyed:function() {this.entity.bullet_prop = this.bullet_prop_org;}
-});
+Q.weapon_ammo['Groza']=60;
 
-Q.register('M16A4',{
-	added:function() {
-		this.bullet_prop_org = this.entity.bullet_prop;
-		this.entity.bullet_prop = {
+Q.weapon_data['M16A4']={
 			speed : 300,
 			reload : 0.24,
 			bias : 0.12,
 			life : 7,
 			damage : 8,
+			recoil : 2,
+			penetrate : false,
 			bounce : false
 		};
-	},
-	destroyed:function() {this.entity.bullet_prop = this.bullet_prop_org;}
-});
+Q.weapon_ammo['M16A4']=30;
 
-Q.register('Scar-L',{
-	added:function() {
-		this.bullet_prop_org = this.entity.bullet_prop;
-		this.entity.bullet_prop = {
+Q.weapon_data['Scar-L']={
 			speed : 310,
 			reload : 0.23,
 			bias : 0.08,
 			life : 6,
 			damage : 7,
+			recoil : 1.5,
+			penetrate : false,
 			bounce : false
 		};
-	},
-	destroyed:function() {this.entity.bullet_prop = this.bullet_prop_org;}
-});
+Q.weapon_ammo['Scar-L']=40;
 
-Q.register('M416',{
-	added:function() {
-		this.bullet_prop_org = this.entity.bullet_prop;
-		this.entity.bullet_prop = {
+Q.weapon_data['M416']={
 			speed : 330,
 			reload : 0.26,
 			bias : 0.08,
 			life : 6,
 			damage : 10,
+			recoil : 1.5,
+			penetrate : false,
 			bounce : false
 		};
-	},
-	destroyed:function() {this.entity.bullet_prop = this.bullet_prop_org;}
-});
+Q.weapon_ammo['M416']=40;
 
 //狙击步枪
-Q.register('Kar-98K',{
-	added:function() {
-		this.bullet_prop_org = this.entity.bullet_prop;
-		this.entity.bullet_prop = {
-			speed : 400,
+Q.weapon_data['Kar-98K']={
+			speed : 600,
 			reload : 1.2,
 			bias : 0.04,
 			life : 12,
 			damage : 50,
+			recoil : 12,
+			penetrate : true,
 			bounce : false
 		};
-	},
-	destroyed:function() {this.entity.bullet_prop = this.bullet_prop_org;}
-});
+Q.weapon_ammo['Kar-98K']=15;
 
-Q.register('SKS',{
-	added:function() {
-		this.bullet_prop_org = this.entity.bullet_prop;
-		this.entity.bullet_prop = {
-			speed : 380,
-			reload : 1.2,
+Q.weapon_data['SKS']={
+			speed : 580,
+			reload : 1,
 			bias : 0.03,
 			life : 13,
 			damage : 45,
+			recoil : 5,
+			penetrate : false,
 			bounce : false
 		};
-	},
-	destroyed:function() {this.entity.bullet_prop = this.bullet_prop_org;}
-});
+Q.weapon_ammo['SKS']=15;
 
-Q.register('AWM',{
-	added:function() {
-		this.bullet_prop_org = this.entity.bullet_prop;
-		this.entity.bullet_prop = {
-			speed : 410,
+Q.weapon_data['AWM']={
+			speed : 580,
 			reload : 1.5,
 			bias : 0.02,
 			life : 13,
-			damage : 60,
+			damage : 100,
+			recoil : 5,
+			penetrate : true,
 			bounce : false
 		};
-	},
-	destroyed:function() {this.entity.bullet_prop = this.bullet_prop_org;}
-});
+Q.weapon_ammo['AWM']=10;
 
-Q.register('MK14',{
-	added:function() {
-		this.bullet_prop_org = this.entity.bullet_prop;
-		this.entity.bullet_prop = {
+Q.weapon_data['MK14']={
 			speed : 400,
 			reload : 0.8,
 			bias : 0.03,
 			life : 12,
 			damage : 50,
+			recoil : 4,
+			penetrate : false,
 			bounce : false
 		};
-	},
-	destroyed:function() {this.entity.bullet_prop = this.bullet_prop_org;}
-});
+Q.weapon_ammo['MK14']=15;
 
 //轻机枪
-Q.register('M249',{
-	added:function() {
-		this.bullet_prop_org = this.entity.bullet_prop;
-		this.entity.bullet_prop = {
+Q.weapon_data['M249']={
 			speed : 380,
 			reload : 0.12,
 			bias : 0.05,
 			life : 12,
 			damage : 10,
+			recoil : 1,
+			penetrate : false,
 			bounce : false
 		};
-	},
-	destroyed:function() {this.entity.bullet_prop = this.bullet_prop_org;}
-});
+Q.weapon_ammo['M249']=100;
 
-Q.register('Minigun',{
-	added:function() {
-		this.bullet_prop_org = this.entity.bullet_prop;
-		this.entity.bullet_prop = {
+Q.weapon_data['Minigun']={
 			speed : 400,
 			reload : 0.11,
 			bias : 0.04,
 			life : 10,
 			damage : 8,
+			recoil : 2,
+			penetrate : false,
 			bounce : false
 		};
-	},
-	destroyed:function() {this.entity.bullet_prop = this.bullet_prop_org;}
-});
+Q.weapon_ammo['Minigun']=100;
 
 //重机枪
-Q.register('Dominator-77',{
-	added:function() {
-		this.bullet_prop_org = this.entity.bullet_prop;
-		this.entity.bullet_prop = {
-			speed : 440,
+Q.weapon_data['Dominator-77']={
+			speed : 420,
 			reload : 0.12,
 			bias : 0.1,
 			life : 15,
 			damage : 10,
+			recoil : 0,
+			penetrate : true,
 			bounce : false
 		};
-	},
-	destroyed:function() {this.entity.bullet_prop = this.bullet_prop_org;}
-});
+Q.weapon_ammo['Dominator-77']=80;
+
+//火箭炮
+Q.weapon_data['PF89']={
+			speed : 150,
+			reload : 5,
+			bias : 0.05,
+			life : 30,
+			damage : 120,
+			recoil : 30,
+			penetrate : false,
+			bounce : false
+		};
+Q.weapon_ammo['PF89']=5;
 

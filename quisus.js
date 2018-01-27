@@ -95,29 +95,8 @@ var Quisus = function () {
 	var Q = {};
 	
 	Q._normalizeArg = function (arg) {
-		if (_.isString(arg)) {
 			arg = arg.replace(/\s+/g, '').split(",");
-		}
-		if (!_.isArray(arg)) {
-			arg = [arg];
-		}
 		return arg;
-	};
-	
-	// Shortcut to extend Quintus with new functionality
-	// binding the methods to Q
-	Q.extend = function (obj) {
-		_(Q).extend(obj);
-		return Q;
-	};
-	
-	// Syntax for including other modules into quintus
-	Q.include = function (mod) {
-		_.each(Q._normalizeArg(mod), function (m) {
-			m = Quintus[m] || m;
-			m(Q);
-		});
-		return Q;
 	};
 	
 	Q.gameLoop = function (callback) {
@@ -221,19 +200,12 @@ var Quisus = function () {
 	Q.Component = Q.Evented.extend({
 		init: function (entity) {
 			this.entity = entity;
-			if (this.extend) _.extend(entity, this.extend);
 			entity[this.name] = this;
 			entity.activeComponents.push(this.name);
 			if (this.added) this.added();
 		},
 		
 		destroy: function () {
-			if (this.extend) {
-				var extensions = _.keys(this.extend);
-				for (var i = 0, len = extensions.length; i < len; i++) {
-					delete this.entity[extensions[i]];
-				}
-			}
 			delete this.entity[this.name];
 			var idx = this.entity.activeComponents.indexOf(this.name);
 			if (idx != -1) {

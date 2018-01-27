@@ -208,6 +208,8 @@ Q.client_core = Q.core.extend({
 					msg = "Stalker's Cloak : Invisible for 30s"; break;
 				case 'shield':
 					msg = 'Fearless Shield : Gain 30 armor for 30s'; break;
+				case 'radar':
+					msg = 'Military Radar : Track other players for 10s'; break;
 			}
 			var index = this.animsg_list.push({text:msg,alpha:0,displayed:false}) -1;
 			this.client_add_animation('system','message',this.animsg_list[index]);
@@ -359,7 +361,7 @@ Q.client_core = Q.core.extend({
 			this.is_mouseclicked = false;
 			setTimeout((function () {
 				this.can_atk = true;
-			}).bind(this), this.me.bullet_prop.reload * 1000);
+			}).bind(this), this.me.prop.reload * 1000);
 		}
 		msg.input.kb = km;
 
@@ -651,6 +653,15 @@ Q.client_core = Q.core.extend({
 		ctx.fillStyle = 'lightgreen';
 		ctx.fillRect(s*this.me.pos.x/this.block_width,s*this.me.pos.y/this.block_height,4,4);
 
+		if (this.me.radar) {
+			ctx.fillStyle = 'red';
+			for (var id in this.state.players)
+				if (id != this.id) {
+					var p = this.state.players[id];
+					ctx.fillRect(s*p.pos.x/this.block_width,s*p.pos.y/this.block_height,4,4);
+				}
+		}
+
 			//绘制资源
 		ctx.fillStyle = 'lightyellow';
 		for (var id in this.state.boxes) 
@@ -797,6 +808,7 @@ Q.client_core = Q.core.extend({
 			this.game.map.removeEventListener('click', this.mouse_click);
 			$("#login").removeClass("hidden-div");
 			$("#game").addClass("hidden-div");
+			init();
 		}
 	}
 });

@@ -42,7 +42,7 @@ var player_cmp = function (x, y) {
 			if ((isNumber(x[p]) && !isNumber(y[p])) || (!isNumber(x[p]) && isNumber(y[p])))
 				return false;
 			else if (isNumber(x[p]))
-				if (Math.abs(x[p] - y[p]) > 0.1)	//精度0.1
+				if (Math.abs(x[p] - y[p]) > 1)	//精度1
 					return false;
 				else continue;
 			
@@ -57,38 +57,19 @@ var player_cmp = function (x, y) {
 };
 
 var player_size = 15;
-/*
-Q.game_player = function (nickname) {
-	this.id = nickname;
-	this.pos = {
-		x: Math.floor(Math.random() * global_width),
-		y: Math.floor(Math.random() * global_height)
-	};
-	this.health = {cur: 100, max: 100};
-	this.shield = 0;
-	this.speed = {x: {cur: 0, max: 120, acc: 180}, y: {cur: 0, max: 120, acc: 180}};
-	this.dir = 0;
-	this.color = 0;
-	this.size = player_size;
-	
-	this.bullet_prop={
-		speed : 240,
-		reload : 0.6,
-		bias : 0.1,
-		life : 5,
-		damage : 10,
-		bounce : false
-	};
+var prop_org = {
+	speed : 240,
+	reload : 0.6,
+	bias : 0.1,
+	life : 5,
+	damage : 10,
+	bounce : false,
+	recoil : 0,
+	penetrate : false
+};
 
-	this.score = 0;
-	this.alpha = 1;
-	this.invisible = false;
-	this.sight = 1;
-};*/
-
-Q.game_player = Q.GameObject.extend({
-	init:function(nickname) {
-		this.id = nickname;
+Q.game_player = function(alias) {
+	this.id = alias;
 	this.pos = {
 		x: Math.floor(Math.random() * global_width),
 		y: Math.floor(Math.random() * global_height)
@@ -99,22 +80,36 @@ Q.game_player = Q.GameObject.extend({
 	this.dir = 0;
 	this.color = 0;
 	this.size = player_size;
-	
-	this.bullet_prop={
-		speed : 240,
-		reload : 0.6,
-		bias : 0.1,
-		life : 5,
-		damage : 10,
-		bounce : false
-	};
+	this.prop=prop_org;
 
 	this.score = 0;
 	this.alpha = 1;
 	this.invisible = false;
 	this.sight = 1;
+	this.radar = false;
+};
+
+Q.game_player.prototype.isArmed = function() {
+	return (typeof this.weapon === 'string' && this.weapon.length>0);
+};
+
+Q.game_player.prototype.equip = function(weapon_id) {
+	if (this.isArmed()) {
+		this.unequip();
+		this.equip(weapon_id);
 	}
-});
+	else {
+		this.weapon = weapon_id;
+		this.ammo = Q.weapon_ammo[weapon_id];
+		this.prop = Q.weapon_data[weapon_id];
+	}
+};
+
+Q.game_player.prototype.unequip = function() {
+	delete this.weapon;
+	this.ammo = 0;
+	this.prop = prop_org;
+}
 
 var bullet_size = 5;
 Q.bullet = function (p) {
@@ -127,13 +122,14 @@ Q.bullet = function (p) {
 	this.alpha = 1;
 
 	//可增强属性
-	this.speed = p.bullet_prop.speed;
-	this.life = {cur: 0, max: p.bullet_prop.life};
-	this.bounce = p.bullet_prop.bounce;
-	this.damage = p.bullet_prop.damage;
+	this.speed = p.prop.speed;
+	this.life = {cur: 0, max: p.prop.life};
+	this.bounce = p.prop.bounce;
+	this.damage = p.prop.damage;
+	this.penetrate = p.prop.penetrate;
 
 	//弹道偏移
-	var b = p.bullet_prop.bias;
+	var b = p.prop.bias;
 	var start_dir = p.dir + Math.PI / 2 * (Math.random() * 2 * b - b);
 	this.dir = {x: Math.cos(start_dir), y: Math.sin(start_dir)};
 };
@@ -157,7 +153,7 @@ Q.box.prototype.update = function(dt) {
 Q.weapon = function (pos,id) {
 	this.pos = {x:pos.x,y:pos.y};
 	this.id = id;
-}
+};
 
 Q.core = Q.Evented.extend({
 	global_width:global_width,
@@ -181,20 +177,29 @@ Q.core = Q.Evented.extend({
 		p.speed.x.cur = Math.min(p.speed.x.cur + dt * p.speed.x.acc, p.speed.x.max);
 	},
 	
-	update_player_physics: function (p, dt, is_no_x, is_no_y) {
+	update_player_physics: function (p, dt, is_no_x, is_no_y, is_no_j) {
 		
-		
-		if (is_no_x) {
+		//后坐力
+		if (!is_no_j) {
+			p.speed.x.cur -= Math.cos(p.dir) * p.prop.recoil * 20;
+			p.speed.y.cur -= Math.sin(p.dir) * p.prop.recoil * 20;
+			p.speed.x.cur = Math.max(Math.min(p.speed.x.cur,p.speed.x.max),-p.speed.x.max);
+			p.speed.y.cur = Math.max(Math.min(p.speed.y.cur,p.speed.y.max),-p.speed.y.max);
+		}
+		else {
+			//粘滞阻力
+			if (is_no_x) {
 			if (p.speed.x.cur > 0)
 				p.speed.x.cur = Math.max(0, p.speed.x.cur - dt * p.speed.x.acc);
 			else
 				p.speed.x.cur = Math.min(0, p.speed.x.cur + dt * p.speed.x.acc);
-		}
-		if (is_no_y) {
+			}
+			if (is_no_y) {
 			if (p.speed.y.cur > 0)
 				p.speed.y.cur = Math.max(0, p.speed.y.cur - dt * p.speed.y.acc);
 			else
 				p.speed.y.cur = Math.min(0, p.speed.y.cur + dt * p.speed.y.acc);
+			}
 		}
 
 		//地形碰撞检测
@@ -238,6 +243,7 @@ Q.core = Q.Evented.extend({
 				b.destroyable = true;
 
 		//地形反弹
+		if (!b.penetrate) {
 		b_check=[[b.dir.x>0?1:-1,0],[0,b.dir.y>0?1:-1]];
 		for (var i=0;i<2;i++) {
 			bblck_x = Math.floor((b.pos.x+b_check[i][0]*b.size) / this.block_width);
@@ -254,6 +260,7 @@ Q.core = Q.Evented.extend({
 							break;
 						}
 					}
+		}
 		}
 
 		b.life.cur += dt;
@@ -280,7 +287,7 @@ Q.core = Q.Evented.extend({
 			}
 		}
 		this.update_player_physics(p, dt, (inputs.kb.indexOf('a') < 0 && inputs.kb.indexOf('d') < 0),
-			(inputs.kb.indexOf('w') < 0 && inputs.kb.indexOf('s') < 0));
+			(inputs.kb.indexOf('w') < 0 && inputs.kb.indexOf('s') < 0), inputs.kb.indexOf('j') < 0);
 		
 		p.dir = inputs.ms;
 	},
