@@ -236,6 +236,12 @@ Q.client_core = Q.core.extend({
 							size:entity.size}};
 
 		}
+		else if (eff=='reload') {
+			anim = {type:type,
+					eff:eff,
+					entity:entity,
+					timer:0};
+		}
 		else if (eff=='interpolation') {
 			anim = {type:type,
 					eff:eff,
@@ -362,11 +368,13 @@ Q.client_core = Q.core.extend({
 			setTimeout((function () {
 				this.can_atk = true;
 			}).bind(this), this.me.prop.reload * 1000);
+			if (animation)
+				this.client_add_animation('system','reload',this.me.prop.reload);
 		}
 		msg.input.kb = km;
 
 		//获取鼠标输入
-		var s = this.me.sight;
+		var s = this.me.prop.sight;
 		msg.input.ms = Math.atan((this.mouse_pos.y * s - this.mapY) / (this.mouse_pos.x * s - this.mapX));
 		if (this.mouse_pos.x * s< this.mapX) msg.input.ms += Math.PI;
 
@@ -374,11 +382,15 @@ Q.client_core = Q.core.extend({
 	},
 
 	client_predict: function(msg,dt) {
-		this.process_inputs(this.state.players[this.id], msg.input, dt);				//客户端立即更新状态
+		var me = this.state.players[this.id];
+		this.process_inputs(me, msg.input, dt);				//客户端立即更新状态
+		if (msg.input.kb.indexOf('j')>=0 && me.weapon && me.weapon.length>0)
+			if (me.ammo>0)	me.ammo-=1;
+
 		this.buffer[this.seq] = {};
 		this.buffer[this.seq].player = {};
 		this.buffer[this.seq].input = msg.input;
-		$.extend(true, this.buffer[this.seq].player, this.state.players[this.id]);	//深拷贝
+		$.extend(true, this.buffer[this.seq].player, me);	//深拷贝
 		this.seq = (this.seq + 1) % this.buffer_maxlength;								//环状buffer
 	},
 
@@ -608,6 +620,11 @@ Q.client_core = Q.core.extend({
 				ctx.fillText(this.messages.text[(i + this.messages.tail) % this.messages.length], map_width - 150, 60 + i * 20);
 			}
 		}
+		if (this.me.ammo>0) {
+			ctx.font = '20px "Futura"';
+			ctx.fillText(this.me.ammo,map_width/2,map_height - 50);
+		}
+
 		ctx.restore();
 	},
 
@@ -673,9 +690,22 @@ Q.client_core = Q.core.extend({
 
 	},
 
+	client_render_reload: function(progress) {
+		var ctx = this.game.ctx;
+		ctx.save();
+		ctx.translate(map_width/2,map_height-40);
+		ctx.strokeStyle = 'rgb(200,200,200)';
+		ctx.lineWidth = 2;
+		ctx.strokeRect(-40,0,80,10);
+		ctx.fillStyle = 'white';
+		ctx.fillRect(-40,0,80*progress,10);
+		ctx.restore();
+	},
+
 	//绘制逐帧动画，若为派生动画（如fade-out等实体消亡类型），需描述每一帧并额外调用client_render方法；
 	//			 若为寄生动画（如underatk等寄生于实体类型），只需描述每一帧即可；
 	//			 若为系统动画（如interpolation等), 需要描述每一帧并加入相关绘制实体(entity)，实体消除在内部实现；
+	//   					若为reload，直接调用外部方法
 	//所有动画都以anim.anim_destroyable=true结束，外部将以此销毁anim对象。
 	client_render_animation: function (anim,dt) {
 		if (!anim) return;
@@ -747,10 +777,17 @@ Q.client_core = Q.core.extend({
 				anim.lasting = false;
 			}
 		}
+
+		if (anim.eff==='reload') {
+			this.client_render_reload(anim.timer/anim.entity)
+			anim.timer+=dt;
+			if (anim.timer>anim.entity)
+				anim.anim_destroyable = true;
+		}
 	},
 
 	client_render: function (dt) {
-		var s = this.state.players[this.id].sight;
+		var s = this.state.players[this.id].prop.sight;
 		this.game.ctx.scale(1/s,1/s);
 		map_width = map_width_org * s;
 		map_height = map_height_org * s;

@@ -65,6 +65,7 @@ var prop_org = {
 	damage : 10,
 	bounce : false,
 	recoil : 0,
+	sight : 1,
 	penetrate : false
 };
 
@@ -85,7 +86,6 @@ Q.game_player = function(alias) {
 	this.score = 0;
 	this.alpha = 1;
 	this.invisible = false;
-	this.sight = 1;
 	this.radar = false;
 };
 

@@ -407,6 +407,7 @@ Q.weapon_data['UMP9']={
 			life : 6,
 			damage : 6,
 			recoil : 2,
+			sight : 1,
 			penetrate : false,
 			bounce : false
 		};
@@ -419,6 +420,7 @@ Q.weapon_data['Micro_Uzi']={
 			life : 7,
 			damage : 2,
 			recoil : 2,
+			sight : 1,
 			penetrate : false,
 			bounce : false
 		};
@@ -431,6 +433,7 @@ Q.weapon_data['Vector']={
 			life : 5,
 			damage : 5,
 			recoil : 1,
+			sight : 1,
 			penetrate : false,
 			bounce : false
 		};
@@ -444,6 +447,7 @@ Q.weapon_data['AKM']={
 			life : 8,
 			damage : 15,
 			recoil : 5,
+			sight : 1,
 			penetrate : false,
 			bounce : false
 		};
@@ -456,6 +460,7 @@ Q.weapon_data['Groza']={
 			life : 8,
 			damage : 10,
 			recoil : 1,
+			sight : 1.05,
 			penetrate : false,
 			bounce : false
 		};
@@ -468,6 +473,7 @@ Q.weapon_data['M16A4']={
 			life : 7,
 			damage : 8,
 			recoil : 2,
+			sight : 1,
 			penetrate : false,
 			bounce : false
 		};
@@ -480,6 +486,7 @@ Q.weapon_data['Scar-L']={
 			life : 6,
 			damage : 7,
 			recoil : 1.5,
+			sight : 1,
 			penetrate : false,
 			bounce : false
 		};
@@ -492,6 +499,7 @@ Q.weapon_data['M416']={
 			life : 6,
 			damage : 10,
 			recoil : 1.5,
+			sight : 1,
 			penetrate : false,
 			bounce : false
 		};
@@ -505,6 +513,7 @@ Q.weapon_data['Kar-98K']={
 			life : 12,
 			damage : 50,
 			recoil : 12,
+			sight : 1.1,
 			penetrate : true,
 			bounce : false
 		};
@@ -517,6 +526,7 @@ Q.weapon_data['SKS']={
 			life : 13,
 			damage : 45,
 			recoil : 5,
+			sight : 1.1,
 			penetrate : false,
 			bounce : false
 		};
@@ -529,6 +539,7 @@ Q.weapon_data['AWM']={
 			life : 13,
 			damage : 100,
 			recoil : 5,
+			sight : 1.2,
 			penetrate : true,
 			bounce : false
 		};
@@ -541,6 +552,7 @@ Q.weapon_data['MK14']={
 			life : 12,
 			damage : 50,
 			recoil : 4,
+			sight : 1.1,
 			penetrate : false,
 			bounce : false
 		};
@@ -554,6 +566,7 @@ Q.weapon_data['M249']={
 			life : 12,
 			damage : 10,
 			recoil : 1,
+			sight : 1,
 			penetrate : false,
 			bounce : false
 		};
@@ -566,6 +579,7 @@ Q.weapon_data['Minigun']={
 			life : 10,
 			damage : 8,
 			recoil : 2,
+			sight : 1,
 			penetrate : false,
 			bounce : false
 		};
@@ -579,6 +593,7 @@ Q.weapon_data['Dominator-77']={
 			life : 15,
 			damage : 10,
 			recoil : 0,
+			sight : 1,
 			penetrate : true,
 			bounce : false
 		};
@@ -592,7 +607,8 @@ Q.weapon_data['PF89']={
 			life : 30,
 			damage : 120,
 			recoil : 30,
-			penetrate : false,
+			sight : 1.4,
+			penetrate : true,
 			bounce : false
 		};
 Q.weapon_ammo['PF89']=5;
