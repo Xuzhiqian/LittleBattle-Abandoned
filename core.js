@@ -57,6 +57,7 @@ var player_cmp = function (x, y) {
 };
 
 var player_size = 15;
+var bullet_size = 5;
 var prop_org = {
 	speed : 240,
 	reload : 0.6,
@@ -66,6 +67,7 @@ var prop_org = {
 	bounce : false,
 	recoil : 0,
 	sight : 1,
+	size : bullet_size,
 	penetrate : false
 };
 
@@ -93,15 +95,19 @@ Q.game_player.prototype.isArmed = function() {
 	return (typeof this.weapon === 'string' && this.weapon.length>0);
 };
 
-Q.game_player.prototype.equip = function(weapon_id) {
+Q.game_player.prototype.equip = function(weapon) {
 	if (this.isArmed()) {
-		this.unequip();
-		this.equip(weapon_id);
+		if (this.weapon==weapon.id)
+			this.ammo += weapon.ammo;
+		else {
+			this.unequip();
+			this.equip(weapon);
+		}
 	}
 	else {
-		this.weapon = weapon_id;
-		this.ammo = Q.weapon_ammo[weapon_id];
-		this.prop = Q.weapon_data[weapon_id];
+		this.weapon = weapon.id;
+		this.ammo = weapon.ammo;
+		this.prop = Q.weapon_data[weapon.id];
 	}
 };
 
@@ -111,11 +117,10 @@ Q.game_player.prototype.unequip = function() {
 	this.prop = prop_org;
 }
 
-var bullet_size = 5;
 Q.bullet = function (p) {
 	//基础属性
 	this.pos = {x: p.pos.x, y: p.pos.y};
-	this.size = bullet_size;
+	this.size = p.prop.size || bullet_size;
 	this.color = p.color;
 	this.owner_id = p.id;
 	this.destroyable = false;

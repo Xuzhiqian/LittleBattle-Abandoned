@@ -140,6 +140,7 @@ Q.server_core = Q.core.extend({
 		if (this.check_terrain(pos)==true) return;
 
 		var new_wpn = new Q.weapon(pos,weapons[Math.floor(Math.random()*weapons.length)]);
+		new_wpn.ammo = Q.weapon_ammo[new_wpn.id];
 		var index = this.weapons.push(new_wpn) - 1;
 		this.trigger('new_weapon',{weapon:new_wpn, index:index});
 	},
@@ -240,8 +241,8 @@ Q.server_core = Q.core.extend({
 		for (var index in this.weapons) {
 			var w = this.weapons[index];
 			if (w!=null)
-				if (dis(this.players[pid].pos,w.pos)<this.players[pid].size) {
-					this.players[pid].equip(w.id);
+				if (dis(this.players[pid].pos,w.pos)<this.players[pid].size+25) {
+					this.players[pid].equip(w);
 					this.server_delete_weapon(index);
 					break;
 				}
@@ -395,7 +396,7 @@ var weapons = ['UMP9','UMP9','UMP9',
 			   'M249','M249',
 			   'Minigun','Minigun',
 			   'Dominator-77',
-			   'PF89'];
+			   'PF-89'];
 Q.weapon_data = [];
 Q.weapon_ammo = [];
 
@@ -421,6 +422,7 @@ Q.weapon_data['Micro_Uzi']={
 			damage : 2,
 			recoil : 2,
 			sight : 1,
+			size : 2,
 			penetrate : false,
 			bounce : false
 		};
@@ -434,6 +436,7 @@ Q.weapon_data['Vector']={
 			damage : 5,
 			recoil : 1,
 			sight : 1,
+			size : 4,
 			penetrate : false,
 			bounce : false
 		};
@@ -448,6 +451,7 @@ Q.weapon_data['AKM']={
 			damage : 15,
 			recoil : 5,
 			sight : 1,
+			size : 6,
 			penetrate : false,
 			bounce : false
 		};
@@ -514,6 +518,7 @@ Q.weapon_data['Kar-98K']={
 			damage : 50,
 			recoil : 12,
 			sight : 1.1,
+			size : 3,
 			penetrate : true,
 			bounce : false
 		};
@@ -527,6 +532,7 @@ Q.weapon_data['SKS']={
 			damage : 45,
 			recoil : 5,
 			sight : 1.1,
+			size : 3.5,
 			penetrate : false,
 			bounce : false
 		};
@@ -540,6 +546,7 @@ Q.weapon_data['AWM']={
 			damage : 100,
 			recoil : 5,
 			sight : 1.2,
+			size : 2.5,
 			penetrate : true,
 			bounce : false
 		};
@@ -553,6 +560,7 @@ Q.weapon_data['MK14']={
 			damage : 50,
 			recoil : 4,
 			sight : 1.1,
+			size : 3,
 			penetrate : false,
 			bounce : false
 		};
@@ -567,6 +575,7 @@ Q.weapon_data['M249']={
 			damage : 10,
 			recoil : 1,
 			sight : 1,
+			size : 4,
 			penetrate : false,
 			bounce : false
 		};
@@ -594,13 +603,14 @@ Q.weapon_data['Dominator-77']={
 			damage : 10,
 			recoil : 0,
 			sight : 1,
+			size : 6,
 			penetrate : true,
 			bounce : false
 		};
 Q.weapon_ammo['Dominator-77']=80;
 
 //火箭炮
-Q.weapon_data['PF89']={
+Q.weapon_data['PF-89']={
 			speed : 150,
 			reload : 5,
 			bias : 0.05,
@@ -608,8 +618,9 @@ Q.weapon_data['PF89']={
 			damage : 120,
 			recoil : 30,
 			sight : 1.4,
+			size : 12,
 			penetrate : true,
 			bounce : false
 		};
-Q.weapon_ammo['PF89']=5;
+Q.weapon_ammo['PF-89']=5;
 

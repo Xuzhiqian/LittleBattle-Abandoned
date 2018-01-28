@@ -65,7 +65,7 @@ Q.client_core = Q.core.extend({
 		
 		//攻击设置
 		this.can_atk = true;
-		this.is_mouseclicked = false;
+		this.is_mouse_down_hold = false;
 		//攻击设置结束
 		
 		//鼠标设置
@@ -77,12 +77,16 @@ Q.client_core = Q.core.extend({
 				y: e.clientY - rect.top
 			};
 		};
-		this.mouse_click = function (e) {
-			this.is_mouseclicked = true;
+		this.mouse_down = function (e) {
+			this.is_mouse_down_hold = true;
 		};
+		this.mouse_up = function (e) {
+			this.is_mouse_down_hold = false;
+		}
 		
 		this.game.map.addEventListener('mousemove', (this.get_mouse_pos).bind(this));
-		this.game.map.addEventListener('click', (this.mouse_click).bind(this));
+		this.game.map.addEventListener('mousedown', (this.mouse_down).bind(this));
+		this.game.map.addEventListener('mouseup',(this.mouse_up).bind(this));
 		//鼠标设置结束
 		
 		//画布设置，原始Canvas绘制的模糊问题可以通过缩放提高清晰度
@@ -361,10 +365,9 @@ Q.client_core = Q.core.extend({
 		if (kb.pressed('A')) km = km + 'a';
 		if (kb.pressed('D')) km = km + 'd';
 		if (kb.pressed('F')) km = km + 'f';
-		if (this.is_mouseclicked && this.can_atk) {
+		if (this.is_mouse_down_hold && this.can_atk) {
 			km = km + 'j';
 			this.can_atk = false;
-			this.is_mouseclicked = false;
 			setTimeout((function () {
 				this.can_atk = true;
 			}).bind(this), this.me.prop.reload * 1000);
@@ -509,9 +512,9 @@ Q.client_core = Q.core.extend({
 		ctx.save();
 
 		ctx.translate(weapon.pos.x - this.me.pos.x + this.mapX, weapon.pos.y - this.me.pos.y + this.mapY);
-		ctx.font = '17px "Futura';
-		ctx.fillStyle = 'gold';
-		ctx.fillText(weapon.id,0,0);
+
+		var img = document.getElementById(weapon.id);
+		ctx.drawImage(img,0,0,70,70);
 
 		ctx.restore();
 	},
@@ -842,7 +845,7 @@ Q.client_core = Q.core.extend({
 			Q.pauseGame();
 			alert('You have been slained by ' + state.id.kid + '! Good luck next time!');
 			this.game.map.removeEventListener('mousemove', this.get_mouse_pos);
-			this.game.map.removeEventListener('click', this.mouse_click);
+			this.game.map.removeEventListener('mousedown', this.mouse_click);
 			$("#login").removeClass("hidden-div");
 			$("#game").addClass("hidden-div");
 			init();
