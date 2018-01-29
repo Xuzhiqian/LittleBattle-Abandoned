@@ -23,7 +23,7 @@ core.names=[];
 
 core.id_sendstate = setInterval(function () {
 	if (core.active)
-		io.emit('on_server_update', core.server_snapshot());
+		io.emit('on_server_update', JSON.stringify(core.server_snapshot()));
 }, this.tickrate);
 
 core.bind('new_bullet', function (bullet) {
@@ -101,5 +101,5 @@ io.on("connection", function (socket) {
 });
 
 server.listen(4004, function () {
-	console.log("listening on *:4004");
+	console.log("listening on *:80");
 });

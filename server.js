@@ -292,8 +292,10 @@ Q.server_core = Q.core.extend({
 
 		p.score+=box.health.max/10;
 
+		/*
 		var isrd = this.lucks[pid] || 0.2;
 		if (Math.random()>isrd) return;
+		*/
 		
 
 		var c = Math.floor(rewards.length*Math.random());

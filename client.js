@@ -267,6 +267,7 @@ Q.client_core = Q.core.extend({
 	},
 
 	client_onserverupdate: function (state) {
+		state = JSON.parse(state);
 		var temp = this.state.players;
 		var authority_me;
 
