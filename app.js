@@ -100,6 +100,6 @@ io.on("connection", function (socket) {
 	
 });
 
-server.listen(80, function () {
-	console.log("listening on *:80");
+server.listen(4004, function () {
+	console.log("listening on *:4004");
 });
