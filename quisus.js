@@ -1,5 +1,4 @@
-if ('undefined' != typeof global)
-	var _ = require("underscore");
+
 (function () {
 	var initializing = false,
 		fnTest = /xyz/.test(function () {
