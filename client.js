@@ -17,6 +17,39 @@ var lerp = function(a,b,k) {
 	return a+k*(b-a);
 }
 
+var player_cmp = function (x, y) {
+
+	if (x === y) return true;
+	for (var p in y) {
+		
+		if (y.hasOwnProperty(p)) {
+			if (!x.hasOwnProperty(p)) {
+				return false;
+			}
+			
+			if (x[p] === y[p]) continue;
+			
+			if (Q.isString(x[p]) || Q.isString(y[p]))
+				if (x[p] !== y[p]) return false;
+				else continue;
+			
+			if ((Q.isNumber(x[p]) && !Q.isNumber(y[p])) || (!Q.isNumber(x[p]) && Q.isNumber(y[p])))
+				return false;
+			else if (Q.isNumber(x[p]))
+				if (Math.abs(x[p] - y[p]) > 1)	//精度1
+					return false;
+				else continue;
+			
+			if (Q.isObject(x[p]) && Q.isObject(y[p])) {
+				if (player_cmp(x[p], y[p]) == false)
+					return false;
+			}
+			else return false;
+		}
+	}
+	return true;
+};
+
 Q.client_core = Q.core.extend({
 	init: function () {
 		this.id = '';
@@ -154,6 +187,7 @@ Q.client_core = Q.core.extend({
 	client_playerdisconnect: function (state) {
 		this.messages.newmsg(state.id + ' disconnected');
 		this.player_count = state.count;
+		delete this.state.players[state.id];
 	},
 	
 	client_getnewbullet: function (new_bullet) {
@@ -213,7 +247,7 @@ Q.client_core = Q.core.extend({
 				case 'shield':
 					msg = 'Fearless Shield : Gain 30 armor for 30s'; break;
 				case 'radar':
-					msg = 'Military Radar : Track other players for 10s'; break;
+					msg = 'Mabi Ring : Track other players for 10s'; break;
 			}
 			var index = this.animsg_list.push({text:msg,alpha:0,displayed:false}) -1;
 			this.client_add_animation('system','message',this.animsg_list[index]);
@@ -224,6 +258,11 @@ Q.client_core = Q.core.extend({
 		this.terrain = sur.terrain;
 		this.state.bullets = sur.bullets;
 		this.state.boxes = sur.boxes;
+		for (var index in sur.players) {
+			var id = sur.players[index].id;
+			this.state.players[id]={};
+			$.extend(true,this.state.players[id],sur.players[index]);
+		}
 		this.client_getminimap();
 		Q.gameLoop(this.client_update.bind(this));
 	},
@@ -267,40 +306,44 @@ Q.client_core = Q.core.extend({
 	},
 
 	client_onserverupdate: function (state) {
-		state = JSON.parse(state);
-		var temp = this.state.players;
+
 		var authority_me;
-
-		this.state.players=[];
-		this.state.players[this.id] = temp[this.id];
-
 		for (var index in state.players) {
 			var id = state.players[index].id;
+			if (id==undefined) continue;
 			if (id !== this.id) {
 
-				if (animation && temp[id]) {
+				var pos_org;
+				if (!this.state.players[id]) {
+					this.state.players[id]={};
+					pos_org = {x:0,y:0};
+				}
+				else
+					pos_org = {x:this.state.players[id].pos.x,y:this.state.players[id].pos.y};
+
+				$.extend(true,this.state.players[id],state.players[index]);
+				if (animation) {
 					if (!this.render_list[id]) this.render_list[id]={};
 
 					//其他玩家受攻击时的闪烁动画
-					if (Math.abs(temp[id].health.cur-state.players[index].health.cur)>1)
+					if (state.players[index].health && state.players[index].health.cur)
 						this.client_add_animation('player','underatk',this.render_list[id]);
 					
 					//客户端插值动画
-					this.client_add_animation('player','interpolation',{old:temp[id],
-																	   last:state.players[index],
-																	 render:this.render_list[id]});
-					
+					this.client_add_animation('player','interpolation',{old:pos_org,
+																	   last:this.state.players[id].pos,
+																	 render:this.render_list[id]});	
 				}
-
-				this.state.players[id] = state.players[index];
 			}
 			else
 				authority_me = state.players[index];
 		}
 
 		//自己受到攻击时的动画
-		if (animation && authority_me)
-			if (Math.abs(authority_me.health.cur-temp[this.id].health.cur)>1)
+		if (animation)
+			if (authority_me &&
+				authority_me.health && 
+				authority_me.health.cur)
 				this.client_add_animation('player','underatk',this.render_list[this.id]);
 
 		var head = -1;
@@ -312,12 +355,12 @@ Q.client_core = Q.core.extend({
 			}
 		
 		
-		if (head !== -1)
+		if (head !== -1 && authority_me)
 			if (!player_cmp(this.buffer[head].player, authority_me)) {   //历史状态比较
 				console.log('Reconciliation activated. Local state has been changed by server.');
 				
 				//client rewind
-				this.state.players[this.id] = authority_me;
+				$.extend(true,this.state.players[this.id],authority_me);
 				
 				//client replay
 				for (var i = head + 1; i !== this.seq; i = (i + 1) % this.buffer_maxlength) {
@@ -750,11 +793,8 @@ Q.client_core = Q.core.extend({
 				k=1;
 				anim.anim_destroyable = true;
 			}
-			anim.entity.pos = {x:lerp(o.pos.x,l.pos.x,k),
-							   y:lerp(o.pos.y,l.pos.y,k)};
-			anim.entity.health = {cur:lerp(o.health.cur,l.health.cur,k),
-								  max:l.health.max};
-			anim.entity.dir = lerp(o.dir,l.dir,k);
+			anim.entity.pos = {x:lerp(o.x,l.x,k),
+							   y:lerp(o.y,l.y,k)};
 			anim.ip_time += dt;
 		}
 
@@ -837,7 +877,7 @@ Q.client_core = Q.core.extend({
 		if (state.id.pid !== this.id) {
 			this.messages.newmsg(state.id.kid + ' terminates ' + state.id.pid);
 			this.player_count = state.count;
-			
+			delete this.state.players[state.id.pid];
 			if (state.id.kid === this.id)		//己方确认击杀
 				this.kills += 1;
 		}

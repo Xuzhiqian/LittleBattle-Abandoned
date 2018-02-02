@@ -23,7 +23,7 @@ core.names=[];
 
 core.id_sendstate = setInterval(function () {
 	if (core.active)
-		io.emit('on_server_update', JSON.stringify(core.server_snapshot()));
+		io.emit('on_server_update', core.server_snapshot());
 }, this.tickrate);
 
 core.bind('new_bullet', function (bullet) {
@@ -82,7 +82,11 @@ io.on("connection", function (socket) {
 		socket.client_id = status.id;
 		core.server_add_player(status);
 		io.emit('new_player', {id: status.id, count: core.player_count});
-		socket.emit('init_surrounding',{terrain:core.terrain,boxes:core.boxes,bullets:core.bullets});
+		
+		var players=[];
+		for (var id in core.players)
+			players.push(core.players[id]);
+		socket.emit('init_surrounding',{terrain:core.terrain,boxes:core.boxes,bullets:core.bullets,players:players});
 	});
 	
 	socket.on("client_input", function (msg) {

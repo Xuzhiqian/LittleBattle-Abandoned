@@ -1,10 +1,58 @@
 require("./core.js");
-
+var extend = require("extend");
 var power2 = function (a) {
 	return a * a;
 };
 var dis = function (a, b) {
 	return Math.sqrt(power2(a.x - b.x) + power2(a.y - b.y));
+};
+
+var isEmpty = function(a) {
+	for (var prop in a)
+		return false;
+	return true;
+};
+
+var diff = function (x, y) {
+
+	var d = {};
+
+	if (x === y) return d;
+	for (var p in y) {
+		
+		if (y.hasOwnProperty(p)) {
+
+			if (!x.hasOwnProperty(p)) {
+				d[p]={};
+				if (Q.isObject(p))
+					extend(true,d[p],y[p]);
+				else
+					d[p]=y[p];
+				continue;
+			}
+			
+			if (x[p] === y[p]) continue;
+			
+			if (Q.isString(x[p]) || Q.isString(y[p]))
+				if (x[p] !== y[p])
+					d[p]=y[p];
+				else continue;
+			
+			if (Q.isNumber(x[p]))
+				if ((p=='x' || p=='y') && Math.abs(x[p] - y[p]) < 0.2)
+					continue
+				else
+					d[p]=y[p];
+			
+			if (Q.isObject(x[p]) && Q.isObject(y[p])) {
+				d[p]={};
+				extend(true,d[p],diff(x[p],y[p]));
+				if (isEmpty(d[p])===true)
+					delete d[p];				
+			}			
+		}
+	}
+	return d;
 };
 
 var rewards = ['heal','heal','maxhealth','faster','accer','accer','lucky','invisible','shield','shield','radar'];
@@ -13,6 +61,7 @@ Q.server_core = Q.core.extend({
 	init: function () {
 		this.player_count = 0;
 		this.players = [];
+		this.memory = '{}';
 		this.lucks = [];
 		this.bullets = [];
 		this.boxes = [];
@@ -192,7 +241,6 @@ Q.server_core = Q.core.extend({
 	server_update_players: function(dt) {
 		for (var id in this.players) {
 			if (this.inputs[id] != undefined) {
-				
 				for (var unit_index in this.inputs[id]) {
 					var msg = this.inputs[id][unit_index];
 					
@@ -351,17 +399,37 @@ Q.server_core = Q.core.extend({
 	
 	server_snapshot: function () {
 		var state = {
-			players: [],
-			seqs: []
+			players:{},
+			seqs: [],
+			dead: []
 		};
+		var now=[];
+		var old = JSON.parse(this.memory);
+		for (var index in old)
+			delete old[index].id;
+
 		for (var id in this.players) {
-			state.players.push(this.players[id]);
+			now.push(this.players[id]);
 			if (this.seqs[id] != undefined)
 				state.seqs.push({seq: this.seqs[id], id: id});
 			else
 				state.seqs.push({seq: -1, id: id});
 		}
 		this.seqs = [];
+		state.players = diff(old,now);
+		this.memory = JSON.stringify(now);
+
+		for (var index in state.players) {
+			var is_silence = true;
+			for (var prop in state.players[index])
+				if (prop!='id') {
+					is_silence = false;
+					break;
+				}
+			if (is_silence)
+				delete state.players[index];
+		}
+
 		return state;
 	},
 	

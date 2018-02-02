@@ -14,47 +14,15 @@ var v_a=function (a, b) {
 		return {x: a.x * b, y: a.y * b}
 	};
 
-var player_cmp = function (x, y) {
-	var isNumber = function (x) {
+Q.isNumber = function (x) {
 		return (typeof x === 'number');
 	};
-	var isString = function (x) {
+Q.isString = function (x) {
 		return (typeof x === 'string');
 	};
-	var isObject = function (x) {
+Q.isObject = function (x) {
 		return (typeof x === 'object');
 	};
-	
-	if (x === y) return true;
-	for (var p in x) {
-		
-		if (x.hasOwnProperty(p)) {
-			if (!y.hasOwnProperty(p)) {
-				return false;
-			}
-			
-			if (x[p] === y[p]) continue;
-			
-			if (isString(x[p]) || isString(y[p]))
-				if (x[p] !== y[p]) return false;
-				else continue;
-			
-			if ((isNumber(x[p]) && !isNumber(y[p])) || (!isNumber(x[p]) && isNumber(y[p])))
-				return false;
-			else if (isNumber(x[p]))
-				if (Math.abs(x[p] - y[p]) > 1)	//精度1
-					return false;
-				else continue;
-			
-			if (isObject(x[p]) && isObject(y[p])) {
-				if (player_cmp(x[p], y[p]) == false)
-					return false;
-			}
-			else return false;
-		}
-	}
-	return true;
-};
 
 var player_size = 15;
 var bullet_size = 5;
@@ -167,7 +135,7 @@ Q.core = Q.Evented.extend({
 	block_width:20,
 	block_height:20,
 
-	tickrate:120,		//客户端和服务器的通信间隔(ms)
+	tickrate:60,		//客户端和服务器的通信间隔(ms)
 
 	move_u: function (p, dt) {
 		p.speed.y.cur = Math.max(p.speed.y.cur - dt * p.speed.y.acc, -p.speed.y.max);
