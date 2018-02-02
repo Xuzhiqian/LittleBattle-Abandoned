@@ -158,7 +158,7 @@ Q.client_core = Q.core.extend({
 		
 
 		//事件绑定
-		this.game.socket.on('on_server_update', this.client_onserverupdate.bind(this));	//接受服务器端游戏状态并无条件更新
+		this.game.socket.on('message', this.client_onserverupdate.bind(this));	//接受服务器端游戏状态并无条件更新
 		
 		this.game.socket.on('new_bullet', this.client_getnewbullet.bind(this));		//接受新的子弹
 		this.game.socket.on('delete_bullet', this.client_deletebullet.bind(this));	//删除子弹
@@ -306,6 +306,7 @@ Q.client_core = Q.core.extend({
 	},
 
 	client_onserverupdate: function (state) {
+		state = JSON.parse(state);
 
 		var authority_me;
 		for (var index in state.players) {
@@ -395,7 +396,7 @@ Q.client_core = Q.core.extend({
 			input: {kb: '', ms: 0},
 			id: this.id,
 			seq: this.seq,
-			dt:(dt>0)?dt:0.016
+			dt:(dt>0)?Q.fix(dt):0.0166
 		};
 		kb = this.game.keyboard;
 		
@@ -403,11 +404,17 @@ Q.client_core = Q.core.extend({
 		this.client_getme();
 
 		//获取键盘输入
-		var km = '';
-		if (kb.pressed('W')) km = km + 'w';
-		if (kb.pressed('S')) km = km + 's';
-		if (kb.pressed('A')) km = km + 'a';
-		if (kb.pressed('D')) km = km + 'd';
+		var v = '';
+		if (kb.pressed('W')) v = v + 'w';
+		if (kb.pressed('S')) v = v + 's';
+		if (v.indexOf('ws')!=-1) v='';
+
+		var h ='';
+		if (kb.pressed('A')) h = h + 'a';
+		if (kb.pressed('D')) h = h + 'd';
+		if (h.indexOf('ad')!=-1) h='';
+
+		var km = v + h;
 		if (kb.pressed('F')) km = km + 'f';
 		if (this.is_mouse_down_hold && this.can_atk) {
 			km = km + 'j';
@@ -424,6 +431,7 @@ Q.client_core = Q.core.extend({
 		var s = this.me.prop.sight;
 		msg.input.ms = Math.atan((this.mouse_pos.y * s - this.mapY) / (this.mouse_pos.x * s - this.mapX));
 		if (this.mouse_pos.x * s< this.mapX) msg.input.ms += Math.PI;
+		msg.input.ms=Q.fix(msg.input.ms);
 
 		return msg;
 	},
@@ -438,18 +446,19 @@ Q.client_core = Q.core.extend({
 		this.buffer[this.seq].player = {};
 		this.buffer[this.seq].input = msg.input;
 		$.extend(true, this.buffer[this.seq].player, me);	//深拷贝
-		this.seq = (this.seq + 1) % this.buffer_maxlength;								//环状buffer
+		this.seq = (this.seq + 1) % this.buffer_maxlength;		//环状buffer
 	},
 
 	client_update: function (dt) {
 		var msg = this.client_capture_input(dt);
-		
-		this.game.socket.emit('client_input', msg);			//向服务器发送操作
 		this.client_predict(msg, dt);
+
+		this.encodeInput(msg);
+		this.game.socket.send(this.compressInput(msg));
 
 		this.client_update_bullets(dt);
 		
-		this.client_getme();	//更新处理完毕后的位置
+		this.client_getme();		//更新处理完毕后的位置
 		this.client_render(dt);
 	},
 	

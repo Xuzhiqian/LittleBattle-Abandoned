@@ -23,7 +23,7 @@ core.names=[];
 
 core.id_sendstate = setInterval(function () {
 	if (core.active)
-		io.emit('on_server_update', core.server_snapshot());
+		io.send(JSON.stringify(core.server_snapshot()));
 }, this.tickrate);
 
 core.bind('new_bullet', function (bullet) {
@@ -89,8 +89,8 @@ io.on("connection", function (socket) {
 		socket.emit('init_surrounding',{terrain:core.terrain,boxes:core.boxes,bullets:core.bullets,players:players});
 	});
 	
-	socket.on("client_input", function (msg) {
-		core.server_handle_inputs(msg);
+	socket.on('message', function (msg) {
+		core.server_handle_inputs(core.decompressInput(msg));
 	});
 	
 	
