@@ -265,7 +265,8 @@ Q.core = Q.Evented.extend({
 		this.update_player_physics(p, dt, (inputs.kb.indexOf('a') < 0 && inputs.kb.indexOf('d') < 0),
 			(inputs.kb.indexOf('w') < 0 && inputs.kb.indexOf('s') < 0), inputs.kb.indexOf('j') < 0);
 		
-		p.dir = inputs.ms;
+		if (inputs.ms!=undefined)
+			p.dir = inputs.ms;
 	},
 
 	encodeInput : function(msg) {
@@ -287,21 +288,23 @@ Q.core = Q.Evented.extend({
 
 	compressInput : function(msg) {
 		var c = '';
-		c = c + msg.id+','+msg.seq+','+msg.dt+','+msg.input.kb+','+msg.input.ms;
+		if (msg.input.kb>='I')
+			c = c +msg.seq+','+msg.input.kb+','+msg.input.ms;
+		else
+			c = c+ msg.seq+','+msg.input.kb+',';
 		return c;
 	},
 
 	decompressInput : function(c) {
 		var para = c.split(',');
 		var msg = {
-			id:para[0],
-			seq:parseInt(para[1]),
-			dt:parseFloat(para[2]),
+			seq:parseInt(para[0]),
 			input:{
-				kb:para[3],
-				ms:parseFloat(para[4])
+				kb:para[1]
 			}
 		};
+		if (para[2]!=='')
+			msg.input.ms = parseFloat(para[2]);
 		return msg;
 	},
 

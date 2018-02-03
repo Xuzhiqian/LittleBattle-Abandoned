@@ -393,10 +393,8 @@ Q.client_core = Q.core.extend({
 
 	client_capture_input: function(dt) {
 		var msg = {
-			input: {kb: '', ms: 0},
-			id: this.id,
+			input: {kb: ''},
 			seq: this.seq,
-			dt:(dt>0)?Q.fix(dt):0.0166
 		};
 		kb = this.game.keyboard;
 		
@@ -428,10 +426,10 @@ Q.client_core = Q.core.extend({
 		msg.input.kb = km;
 
 		//获取鼠标输入
-		var s = this.me.prop.sight;
-		msg.input.ms = Math.atan((this.mouse_pos.y * s - this.mapY) / (this.mouse_pos.x * s - this.mapX));
-		if (this.mouse_pos.x * s< this.mapX) msg.input.ms += Math.PI;
-		msg.input.ms=Q.fix(msg.input.ms);
+			var s = this.me.prop.sight;
+			msg.input.ms = Math.atan((this.mouse_pos.y * s - this.mapY) / (this.mouse_pos.x * s - this.mapX));
+			if (this.mouse_pos.x * s< this.mapX) msg.input.ms += Math.PI;
+			msg.input.ms=Q.fix(msg.input.ms);
 
 		return msg;
 	},

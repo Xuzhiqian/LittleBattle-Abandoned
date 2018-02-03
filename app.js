@@ -23,35 +23,35 @@ core.names=[];
 
 core.id_sendstate = setInterval(function () {
 	if (core.active)
-		io.send(JSON.stringify(core.server_snapshot()));
+		io.volatile.send(JSON.stringify(core.server_snapshot()));
 }, this.tickrate);
 
 core.bind('new_bullet', function (bullet) {
-	io.emit('new_bullet', bullet);
+	io.volatile.emit('new_bullet', bullet);
 });
 
 core.bind('delete_bullet', function (bindex) {
-	io.emit('delete_bullet', bindex);
+	io.volatile.emit('delete_bullet', bindex);
 });
 
 core.bind('new_box', function (box) {
-	io.emit('new_box', box);
+	io.volatile.emit('new_box', box);
 });
 
 core.bind('new_weapon', function (wpn) {
-	io.emit('new_weapon', wpn);
+	io.volatile.emit('new_weapon', wpn);
 });
 
 core.bind('delete_weapon', function (windex) {
-	io.emit('delete_weapon',windex);
+	io.volatile.emit('delete_weapon',windex);
 });
 
 core.bind('box_underattack', function(info) {
-	io.emit('box_underattack',info);
+	io.volatile.emit('box_underattack',info);
 });
 
 core.bind('delete_box', function (bindex) {
-	io.emit('delete_box', bindex);
+	io.volatile.emit('delete_box', bindex);
 });
 
 core.bind('player_reward',function(reward_info) {
@@ -90,7 +90,9 @@ io.on("connection", function (socket) {
 	});
 	
 	socket.on('message', function (msg) {
-		core.server_handle_inputs(core.decompressInput(msg));
+		msg = core.decompressInput(msg);
+		msg.id = socket.client_id;
+		core.server_handle_inputs(msg);
 	});
 	
 	

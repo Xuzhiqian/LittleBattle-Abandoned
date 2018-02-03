@@ -245,7 +245,7 @@ Q.server_core = Q.core.extend({
 					var msg = this.inputs[id][unit_index];
 					
 					this.decodeInput(msg);
-					this.process_inputs(this.players[id], msg.input, msg.dt);
+					this.process_inputs(this.players[id], msg.input, 0.016689);
 					if (msg.input.kb.indexOf('j') !== -1) {
 						if (this.players[id].isArmed()) {
 							if (this.players[id].ammo>0)
