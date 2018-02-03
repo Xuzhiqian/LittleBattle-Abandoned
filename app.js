@@ -35,23 +35,23 @@ core.bind('delete_bullet', function (bindex) {
 });
 
 core.bind('new_box', function (box) {
-	io.volatile.emit('new_box', box);
+	io.emit('new_box', box);
 });
 
 core.bind('new_weapon', function (wpn) {
-	io.volatile.emit('new_weapon', wpn);
+	io.emit('new_weapon', wpn);
 });
 
 core.bind('delete_weapon', function (windex) {
-	io.volatile.emit('delete_weapon',windex);
+	io.emit('delete_weapon',windex);
 });
 
 core.bind('box_underattack', function(info) {
-	io.volatile.emit('box_underattack',info);
+	io.emit('box_underattack',info);
 });
 
 core.bind('delete_box', function (bindex) {
-	io.volatile.emit('delete_box', bindex);
+	io.emit('delete_box', bindex);
 });
 
 core.bind('player_reward',function(reward_info) {

@@ -87,8 +87,8 @@ Q.server_core = Q.core.extend({
 
 		if (this.active==false) {
 			this.active=true;
-			this.genbox={cur:0,max:120};
-			this.genwpn={cur:0,max:100};
+			this.genbox={cur:0,max:150};
+			this.genwpn={cur:0,max:320};
 			this.server_generate_terrain();
 		}
 
@@ -245,7 +245,7 @@ Q.server_core = Q.core.extend({
 					var msg = this.inputs[id][unit_index];
 					
 					this.decodeInput(msg);
-					this.process_inputs(this.players[id], msg.input, 0.016689);
+					this.process_inputs(this.players[id], msg.input, 0.0333378);
 					if (msg.input.kb.indexOf('j') !== -1) {
 						if (this.players[id].isArmed()) {
 							if (this.players[id].ammo>0)
@@ -341,10 +341,8 @@ Q.server_core = Q.core.extend({
 
 		p.score+=box.health.max/10;
 
-		/*
-		var isrd = this.lucks[pid] || 0.2;
+		var isrd = this.lucks[pid] || 0.3;
 		if (Math.random()>isrd) return;
-		*/
 		
 
 		var c = Math.floor(rewards.length*Math.random());
@@ -370,7 +368,7 @@ Q.server_core = Q.core.extend({
 
 			case 'lucky':
 				if (!this.lucks[pid])
-					this.lucks[pid] = 0.25;
+					this.lucks[pid] = 0.35;
 				else
 					this.lucks[pid] = Math.min(this.lucks[pid]+0.05,0.5);
 				break;
@@ -631,7 +629,7 @@ Q.weapon_data['MK14']={
 			sight : 1.1,
 			size : 3,
 			penetrate : false,
-			bounce : false
+			bounce : true
 		};
 Q.weapon_ammo['MK14']=15;
 
@@ -689,7 +687,7 @@ Q.weapon_data['PF-89']={
 			sight : 1.4,
 			size : 12,
 			penetrate : true,
-			bounce : false
+			bounce : true
 		};
 Q.weapon_ammo['PF-89']=5;
 

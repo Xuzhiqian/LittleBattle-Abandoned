@@ -138,7 +138,7 @@ Q.core = Q.Evented.extend({
 	block_width:20,
 	block_height:20,
 
-	tickrate:60,		//客户端和服务器的通信间隔(ms)
+	tickrate:100,		//客户端和服务器的通信间隔(ms)
 
 	move_u: function (p, dt) {
 		p.speed.y.cur = Math.max(p.speed.y.cur - dt * p.speed.y.acc, -p.speed.y.max);

@@ -141,6 +141,8 @@ Q.client_core = Q.core.extend({
 		this.minimap_height = this.global_height / this.block_height;
 
 		//基本设置
+		this.frame_count=0;
+		this.dt_acc=0;
 		this.id = this.game.socket.client_id;
 		this.state.bullets = [];
 		this.state.weapons = [];
@@ -448,16 +450,25 @@ Q.client_core = Q.core.extend({
 	},
 
 	client_update: function (dt) {
-		var msg = this.client_capture_input(dt);
-		this.client_predict(msg, dt);
+		this.frame_count+=1;
+		this.dt_acc+=dt;
 
-		this.encodeInput(msg);
-		this.game.socket.send(this.compressInput(msg));
+		if (this.frame_count>=2) {
+			this.frame_count=0;
+			dt = this.dt_acc;
+			this.dt_acc=0;
 
-		this.client_update_bullets(dt);
+			var msg = this.client_capture_input(dt);
+			this.client_predict(msg, dt);
+
+			this.encodeInput(msg);
+			this.game.socket.send(this.compressInput(msg));
+
+			this.client_update_bullets(dt);
 		
-		this.client_getme();		//更新处理完毕后的位置
-		this.client_render(dt);
+			this.client_getme();		//更新处理完毕后的位置
+			this.client_render(dt);
+		}
 	},
 	
 	//将小地图保存在this.minimap中
@@ -765,7 +776,7 @@ Q.client_core = Q.core.extend({
 		if (!anim) return;
 		if (anim.eff==='fadeout') {
 			if (anim.type==='bullet') {
-				anim.entity.alpha-=0.1;
+				anim.entity.alpha-=0.2;
 				anim.entity.size+=0.2;
 				if (anim.entity.alpha>0)
 					this.client_render_bullet(anim.entity);
@@ -773,7 +784,7 @@ Q.client_core = Q.core.extend({
 					anim.anim_destroyable = true;
 			}
 			if (anim.type==='box') {
-				anim.entity.alpha-=0.1;
+				anim.entity.alpha-=0.2;
 				anim.entity.size+=0.2;
 				if (anim.entity.alpha>0)
 					this.client_render_box(anim.entity);
@@ -782,7 +793,7 @@ Q.client_core = Q.core.extend({
 			}
 		}
 		if (anim.eff==='underatk') {
-				anim.entity.alpha-=0.08;
+				anim.entity.alpha-=0.16;
 				anim.entity.size+=0.4;
 				if (anim.entity.alpha<0.25) {
 					anim.entity.alpha = anim.origin.alpha;	//恢复到原始状态
@@ -814,7 +825,7 @@ Q.client_core = Q.core.extend({
 			}
 			if (anim.lasting) anim.count+=1;
 
-			anim.entity.alpha += anim.fading?-0.01:0.05;
+			anim.entity.alpha += anim.fading?-0.02:0.1;
 			if (anim.lasting) anim.entity.alpha = 0.8;
 
 			if (anim.entity.alpha>0.8) {
@@ -823,7 +834,7 @@ Q.client_core = Q.core.extend({
 				anim.count = 0;
 			}
 
-			if (anim.lasting && anim.count>200) {
+			if (anim.lasting && anim.count>100) {
 				anim.fading = true;
 				anim.lasting = false;
 			}
