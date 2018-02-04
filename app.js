@@ -24,7 +24,7 @@ core.names=[];
 core.id_sendstate = setInterval(function () {
 	if (core.active)
 		io.volatile.send(JSON.stringify(core.server_snapshot()));
-}, this.tickrate);
+}, core.tickrate);
 
 core.bind('new_bullet', function (bullet) {
 	io.volatile.emit('new_bullet', bullet);
@@ -37,14 +37,14 @@ core.bind('delete_bullet', function (bindex) {
 core.bind('new_box', function (box) {
 	io.emit('new_box', box);
 });
-/*
+
 core.bind('new_weapon', function (wpn) {
 	io.emit('new_weapon', wpn);
 });
 
 core.bind('delete_weapon', function (windex) {
 	io.emit('delete_weapon',windex);
-});*/
+});
 
 core.bind('box_underattack', function(info) {
 	io.emit('box_underattack',info);
@@ -86,7 +86,7 @@ io.on("connection", function (socket) {
 		var players=[];
 		for (var id in core.players)
 			players.push(core.players[id]);
-		socket.emit('init_surrounding',{terrain:core.terrain,boxes:core.boxes,bullets:core.bullets,players:players});
+		socket.emit('init_surrounding',{terrain:core.terrain,boxes:core.boxes,bullets:core.bullets,players:players,weapons:core.weapons});
 	});
 	
 	socket.on('message', function (msg) {

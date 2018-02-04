@@ -75,7 +75,7 @@
 	if (!window.requestAnimationFrame)
 		window.requestAnimationFrame = function (callback, element) {
 			var currTime = new Date().getTime();
-			var timeToCall = Math.max(0, 33.3378 - (currTime - lastTime));
+			var timeToCall = Math.max(0, 16.689 - (currTime - lastTime));
 			var id = window.setTimeout(function () {
 					callback(currTime + timeToCall);
 				},

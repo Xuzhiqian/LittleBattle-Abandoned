@@ -180,7 +180,6 @@ Q.server_core = Q.core.extend({
 		var index = this.boxes.push(new_box) - 1;
 		this.trigger('new_box', {box:new_box, index:index});
 	},
-	/*
 	server_generate_weapon: function() {
 		var pos = {
 				x: Math.floor(Math.random() * this.global_width),
@@ -192,7 +191,7 @@ Q.server_core = Q.core.extend({
 		new_wpn.ammo = Q.weapon_ammo[new_wpn.id];
 		var index = this.weapons.push(new_wpn) - 1;
 		this.trigger('new_weapon',{weapon:new_wpn, index:index});
-	},*/
+	},
 
 	server_new_bullet: function (player) {
 		var new_bullet = new Q.bullet(player);
@@ -209,11 +208,11 @@ Q.server_core = Q.core.extend({
 		delete this.boxes[index];
 		this.trigger('delete_box',index);
 	},
-	/*
+
 	server_delete_weapon: function (index) {
 		delete this.weapons[index];
 		this.trigger('delete_weapon',index);
-	},*/
+	},
 	
 	server_update: function (dt) {
 		if (!this.active) return;
@@ -224,13 +223,12 @@ Q.server_core = Q.core.extend({
 			this.genbox.cur=0;
 			this.genbox.max+=1;
 		}
-		/*
 		this.genwpn.cur+=1;
 		if (this.genwpn.cur>=this.genwpn.max) {
 			this.server_generate_weapon();
 			this.genwpn.cur=0;
 			this.genwpn.max+=1;
-		}*/
+		}
 
 		this.server_update_players(dt);
 		this.server_update_bullets(dt);
@@ -245,15 +243,14 @@ Q.server_core = Q.core.extend({
 					var msg = this.inputs[id][unit_index];
 					
 					this.decodeInput(msg);
-					this.process_inputs(this.players[id], msg.input, 0.0333378);
+					this.process_inputs(this.players[id], msg.input, 0.016689);
 					if (msg.input.kb.indexOf('j') !== -1) {
-						/*
 						if (this.players[id].isArmed()) {
 							if (this.players[id].ammo>0)
 								this.players[id].ammo-=1;
 							else 
 								this.players[id].unequip();
-						}*/
+						}
 						this.server_new_bullet(this.players[id]);
 					}
 					if (msg.input.kb.indexOf('f') !== -1)
@@ -286,7 +283,7 @@ Q.server_core = Q.core.extend({
 				if (b.destroyable==true) this.server_delete_box(index);
 			}
 	},
-	/*
+	
 	server_player_use: function (pid) {
 		for (var index in this.weapons) {
 			var w = this.weapons[index];
@@ -297,7 +294,7 @@ Q.server_core = Q.core.extend({
 					break;
 				}
 		}
-	},*/
+	},
 
 	server_bullet_check_hit: function (bullet) {
 		for (var id in this.players) {
@@ -448,7 +445,7 @@ Q.server_core = Q.core.extend({
 	}
 	
 });
-/*
+
 var weapons = ['UMP9','UMP9','UMP9',
 			   'Micro_Uzi','Micro_Uzi',
 			   'Vector','Vector',
@@ -690,5 +687,5 @@ Q.weapon_data['PF-89']={
 			penetrate : true,
 			bounce : true
 		};
-Q.weapon_ammo['PF-89']=5;*/
+Q.weapon_ammo['PF-89']=5;
 

@@ -61,7 +61,7 @@ Q.game_player = function(alias) {
 	this.invisible = false;
 	this.radar = false;
 };
-/*
+
 Q.game_player.prototype.isArmed = function() {
 	return (typeof this.weapon === 'string' && this.weapon.length>0);
 };
@@ -87,7 +87,7 @@ Q.game_player.prototype.unequip = function() {
 	this.ammo = 0;
 	this.prop = prop_org;
 }
-*/
+
 Q.bullet = function (p) {
 	//基础属性
 	this.pos = {x: p.pos.x, y: p.pos.y};
@@ -125,11 +125,11 @@ Q.box.prototype.update = function(dt) {
 	if (this.life.cur>this.life.max)
 		this.destroyable = true;
 };
-/*
+
 Q.weapon = function (pos,id) {
 	this.pos = {x:pos.x,y:pos.y};
 	this.id = id;
-};*/
+};
 
 Q.core = Q.Evented.extend({
 	global_width:global_width,
@@ -138,7 +138,7 @@ Q.core = Q.Evented.extend({
 	block_width:20,
 	block_height:20,
 
-	tickrate:100,		//客户端和服务器的通信间隔(ms)
+	tickrate:50,		//客户端和服务器的通信间隔(ms)
 
 	move_u: function (p, dt) {
 		p.speed.y.cur = Math.max(p.speed.y.cur - dt * p.speed.y.acc, -p.speed.y.max);

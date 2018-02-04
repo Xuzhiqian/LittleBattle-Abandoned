@@ -141,8 +141,6 @@ Q.client_core = Q.core.extend({
 		this.minimap_height = this.global_height / this.block_height;
 
 		//基本设置
-		this.frame_count=0;
-		this.dt_acc=0;
 		this.id = this.game.socket.client_id;
 		this.state.bullets = [];
 		this.state.weapons = [];
@@ -170,8 +168,8 @@ Q.client_core = Q.core.extend({
 		this.game.socket.on('delete_box', this.client_deletebox.bind(this));			//删除箱子
 		this.game.socket.on('player_reward',this.client_getreward.bind(this));			
 
-		//this.game.socket.on('new_weapon', this.client_getnewweapon.bind(this));			
-		//this.game.socket.on('delete_weapon',this.client_deleteweapon.bind(this));
+		this.game.socket.on('new_weapon', this.client_getnewweapon.bind(this));			
+		this.game.socket.on('delete_weapon',this.client_deleteweapon.bind(this));
 		
 		this.game.socket.on('init_surrounding', this.client_init_sur.bind(this));
 		this.game.socket.on('player_gameover', this.client_gameover.bind(this));		//玩家死亡
@@ -195,10 +193,10 @@ Q.client_core = Q.core.extend({
 	client_getnewbullet: function (new_bullet) {
 		this.state.bullets[new_bullet.index] = new_bullet.bullet;
 	},
-/*
+
 	client_getnewweapon: function (new_wpn) {
 		this.state.weapons[new_wpn.index] = new_wpn.weapon;
-	},*/
+	},
 	
 	client_deletebullet: function (index) {
 		if (animation && this.state.bullets[index])
@@ -260,6 +258,7 @@ Q.client_core = Q.core.extend({
 		this.terrain = sur.terrain;
 		this.state.bullets = sur.bullets;
 		this.state.boxes = sur.boxes;
+		this.state.weapons = sur.weapons;
 		for (var index in sur.players) {
 			var id = sur.players[index].id;
 			this.state.players[id]={};
@@ -450,13 +449,7 @@ Q.client_core = Q.core.extend({
 	},
 
 	client_update: function (dt) {
-		this.frame_count+=1;
-		this.dt_acc+=dt;
 
-		if (this.frame_count>=2) {
-			this.frame_count=0;
-			dt = this.dt_acc;
-			this.dt_acc=0;
 
 			var msg = this.client_capture_input(dt);
 			this.client_predict(msg, dt);
@@ -468,7 +461,6 @@ Q.client_core = Q.core.extend({
 		
 			this.client_getme();		//更新处理完毕后的位置
 			this.client_render(dt);
-		}
 	},
 	
 	//将小地图保存在this.minimap中
@@ -565,7 +557,7 @@ Q.client_core = Q.core.extend({
 
 		ctx.restore();
 	},
-/*
+
 	client_render_weapon:function (weapon) {
 		if (!weapon) return;
 
@@ -579,7 +571,7 @@ Q.client_core = Q.core.extend({
 		ctx.drawImage(img,0,0,70,70);
 
 		ctx.restore();
-	},*/
+	},
 
 	client_render_bullet: function (bullet) {
 		if (!bullet) return;
@@ -776,7 +768,7 @@ Q.client_core = Q.core.extend({
 		if (!anim) return;
 		if (anim.eff==='fadeout') {
 			if (anim.type==='bullet') {
-				anim.entity.alpha-=0.2;
+				anim.entity.alpha-=0.1;
 				anim.entity.size+=0.2;
 				if (anim.entity.alpha>0)
 					this.client_render_bullet(anim.entity);
@@ -784,7 +776,7 @@ Q.client_core = Q.core.extend({
 					anim.anim_destroyable = true;
 			}
 			if (anim.type==='box') {
-				anim.entity.alpha-=0.2;
+				anim.entity.alpha-=0.1;
 				anim.entity.size+=0.2;
 				if (anim.entity.alpha>0)
 					this.client_render_box(anim.entity);
@@ -793,8 +785,8 @@ Q.client_core = Q.core.extend({
 			}
 		}
 		if (anim.eff==='underatk') {
-				anim.entity.alpha-=0.16;
-				anim.entity.size+=0.4;
+				anim.entity.alpha-=0.08;
+				anim.entity.size+=0.2;
 				if (anim.entity.alpha<0.25) {
 					anim.entity.alpha = anim.origin.alpha;	//恢复到原始状态
 					anim.entity.size = anim.origin.size;
@@ -813,7 +805,7 @@ Q.client_core = Q.core.extend({
 			}
 			anim.entity.pos = {x:lerp(o.x,l.x,k),
 							   y:lerp(o.y,l.y,k)};
-			anim.ip_time += dt;
+			anim.ip_time += dt*1000;
 		}
 
 		if (anim.eff==='message') {
@@ -825,7 +817,7 @@ Q.client_core = Q.core.extend({
 			}
 			if (anim.lasting) anim.count+=1;
 
-			anim.entity.alpha += anim.fading?-0.02:0.1;
+			anim.entity.alpha += anim.fading?-0.01:0.05;
 			if (anim.lasting) anim.entity.alpha = 0.8;
 
 			if (anim.entity.alpha>0.8) {
@@ -834,7 +826,7 @@ Q.client_core = Q.core.extend({
 				anim.count = 0;
 			}
 
-			if (anim.lasting && anim.count>100) {
+			if (anim.lasting && anim.count>200) {
 				anim.fading = true;
 				anim.lasting = false;
 			}
@@ -880,11 +872,11 @@ Q.client_core = Q.core.extend({
 			if (!!this.state.boxes[index])
 				this.client_render_box(this.state.boxes[index]);
 		}
-		/*
+		
 		for (var index in this.state.weapons) {
 			if (!!this.state.weapons[index])
 				this.client_render_weapon(this.state.weapons[index]);
-		}*/
+		}
 		this.client_render_minimap(s);
 		this.client_render_animsg();
 
