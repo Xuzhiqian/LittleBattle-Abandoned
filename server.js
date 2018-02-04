@@ -40,7 +40,13 @@ var diff = function (x, y) {
 			
 			if (Q.isNumber(x[p]))
 				if ((p=='x' || p=='y') && Math.abs(x[p] - y[p]) < 0.2)
-					continue
+					continue;
+				else
+					d[p]=y[p];
+
+			if (Q.isBoolean(x[p]))
+				if (x[p]===y[p])
+					continue;
 				else
 					d[p]=y[p];
 			
@@ -87,8 +93,8 @@ Q.server_core = Q.core.extend({
 
 		if (this.active==false) {
 			this.active=true;
-			this.genbox={cur:0,max:160};
-			this.genwpn={cur:0,max:360};
+			this.genbox={cur:0,max:240};
+			this.genwpn={cur:0,max:720};
 			this.weapons = [];
 			this.boxes = [];
 			this.bullets = [];
@@ -224,13 +230,13 @@ Q.server_core = Q.core.extend({
 		if (this.genbox.cur>=this.genbox.max) {
 			this.server_generate_box();
 			this.genbox.cur=0;
-			this.genbox.max+=1;
+			this.genbox.max+=10;
 		}
 		this.genwpn.cur+=1;
 		if (this.genwpn.cur>=this.genwpn.max) {
 			this.server_generate_weapon();
 			this.genwpn.cur=0;
-			this.genwpn.max+=1;
+			this.genwpn.max+=10;
 		}
 
 		this.server_update_players(dt);
@@ -273,7 +279,7 @@ Q.server_core = Q.core.extend({
 				var b = this.bullets[index];
 				this.update_bullet_physics(b,dt);
 				this.server_bullet_check_hit(b);
-				if (b.destroyable==true) this.server_delete_bullet(index);
+				if (b.destroyable===true) this.server_delete_bullet(index);
 				
 			}
 	},
@@ -318,7 +324,7 @@ Q.server_core = Q.core.extend({
 				}
 		}
 
-		if (bullet.destroyable) return;
+		if (bullet.destroyable === true) return;
 
 		for (var index in this.boxes) {
 			var b = this.boxes[index];
@@ -344,7 +350,6 @@ Q.server_core = Q.core.extend({
 
 		var isrd = this.lucks[pid] || 0.3;
 		if (Math.random()>isrd) return;
-		
 
 		var c = Math.floor(rewards.length*Math.random());
 		
@@ -400,8 +405,7 @@ Q.server_core = Q.core.extend({
 	server_snapshot: function () {
 		var state = {
 			players:{},
-			seqs: [],
-			dead: []
+			seqs: []
 		};
 		var now=[];
 		var old = JSON.parse(this.memory);
@@ -417,6 +421,8 @@ Q.server_core = Q.core.extend({
 		}
 		this.seqs = [];
 		state.players = diff(old,now);
+		if (now[0].invisible==true)
+			console.log(JSON.stringify(state.players));
 		this.memory = JSON.stringify(now);
 
 		for (var index in state.players) {

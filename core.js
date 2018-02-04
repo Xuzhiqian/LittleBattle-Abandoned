@@ -26,6 +26,9 @@ Q.isString = function (x) {
 Q.isObject = function (x) {
 		return (typeof x === 'object');
 };
+Q.isBoolean = function (x) {
+		return (typeof x === 'boolean');
+}
 
 var player_size = 15;
 var bullet_size = 5;
