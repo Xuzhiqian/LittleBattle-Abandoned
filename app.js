@@ -27,11 +27,11 @@ core.id_sendstate = setInterval(function () {
 }, core.tickrate);
 
 core.bind('new_bullet', function (bullet) {
-	io.volatile.emit('new_bullet', bullet);
+	io.emit('new_bullet', bullet);
 });
 
 core.bind('delete_bullet', function (bindex) {
-	io.volatile.emit('delete_bullet', bindex);
+	io.emit('delete_bullet', bindex);
 });
 
 core.bind('new_box', function (box) {
