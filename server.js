@@ -87,8 +87,11 @@ Q.server_core = Q.core.extend({
 
 		if (this.active==false) {
 			this.active=true;
-			this.genbox={cur:0,max:150};
-			this.genwpn={cur:0,max:320};
+			this.genbox={cur:0,max:160};
+			this.genwpn={cur:0,max:360};
+			this.weapons = [];
+			this.boxes = [];
+			this.bullets = [];
 			this.server_generate_terrain();
 		}
 
