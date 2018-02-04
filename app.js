@@ -37,14 +37,14 @@ core.bind('delete_bullet', function (bindex) {
 core.bind('new_box', function (box) {
 	io.emit('new_box', box);
 });
-
+/*
 core.bind('new_weapon', function (wpn) {
 	io.emit('new_weapon', wpn);
 });
 
 core.bind('delete_weapon', function (windex) {
 	io.emit('delete_weapon',windex);
-});
+});*/
 
 core.bind('box_underattack', function(info) {
 	io.emit('box_underattack',info);

@@ -170,8 +170,8 @@ Q.client_core = Q.core.extend({
 		this.game.socket.on('delete_box', this.client_deletebox.bind(this));			//删除箱子
 		this.game.socket.on('player_reward',this.client_getreward.bind(this));			
 
-		this.game.socket.on('new_weapon', this.client_getnewweapon.bind(this));			
-		this.game.socket.on('delete_weapon',this.client_deleteweapon.bind(this));
+		//this.game.socket.on('new_weapon', this.client_getnewweapon.bind(this));			
+		//this.game.socket.on('delete_weapon',this.client_deleteweapon.bind(this));
 		
 		this.game.socket.on('init_surrounding', this.client_init_sur.bind(this));
 		this.game.socket.on('player_gameover', this.client_gameover.bind(this));		//玩家死亡
@@ -195,10 +195,10 @@ Q.client_core = Q.core.extend({
 	client_getnewbullet: function (new_bullet) {
 		this.state.bullets[new_bullet.index] = new_bullet.bullet;
 	},
-
+/*
 	client_getnewweapon: function (new_wpn) {
 		this.state.weapons[new_wpn.index] = new_wpn.weapon;
-	},
+	},*/
 	
 	client_deletebullet: function (index) {
 		if (animation && this.state.bullets[index])
@@ -565,7 +565,7 @@ Q.client_core = Q.core.extend({
 
 		ctx.restore();
 	},
-
+/*
 	client_render_weapon:function (weapon) {
 		if (!weapon) return;
 
@@ -579,7 +579,7 @@ Q.client_core = Q.core.extend({
 		ctx.drawImage(img,0,0,70,70);
 
 		ctx.restore();
-	},
+	},*/
 
 	client_render_bullet: function (bullet) {
 		if (!bullet) return;
@@ -880,10 +880,11 @@ Q.client_core = Q.core.extend({
 			if (!!this.state.boxes[index])
 				this.client_render_box(this.state.boxes[index]);
 		}
+		/*
 		for (var index in this.state.weapons) {
 			if (!!this.state.weapons[index])
 				this.client_render_weapon(this.state.weapons[index]);
-		}
+		}*/
 		this.client_render_minimap(s);
 		this.client_render_animsg();
 

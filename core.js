@@ -4,8 +4,8 @@ if ('undefined' != typeof global) {
 
 var Q = Quisus();
 
-var global_width = 3200,
-	global_height = 2400;
+var global_width = 2400,
+	global_height = 1800;
 
 var v_a=function (a, b) {
 		return {x: a.x + b.x, y: a.y + b.y}
@@ -61,7 +61,7 @@ Q.game_player = function(alias) {
 	this.invisible = false;
 	this.radar = false;
 };
-
+/*
 Q.game_player.prototype.isArmed = function() {
 	return (typeof this.weapon === 'string' && this.weapon.length>0);
 };
@@ -87,7 +87,7 @@ Q.game_player.prototype.unequip = function() {
 	this.ammo = 0;
 	this.prop = prop_org;
 }
-
+*/
 Q.bullet = function (p) {
 	//基础属性
 	this.pos = {x: p.pos.x, y: p.pos.y};
@@ -125,11 +125,11 @@ Q.box.prototype.update = function(dt) {
 	if (this.life.cur>this.life.max)
 		this.destroyable = true;
 };
-
+/*
 Q.weapon = function (pos,id) {
 	this.pos = {x:pos.x,y:pos.y};
 	this.id = id;
-};
+};*/
 
 Q.core = Q.Evented.extend({
 	global_width:global_width,
