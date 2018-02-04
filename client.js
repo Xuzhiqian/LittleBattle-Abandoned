@@ -54,7 +54,7 @@ Q.client_core = Q.core.extend({
 	init: function () {
 		this.id = '';
 		this.buffer = [];
-		this.buffer_maxlength = 2000;
+		this.buffer_maxlength = 20000;
 		this.seq = 0;
 
 		this.state = {};
