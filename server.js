@@ -478,10 +478,12 @@ var weapons = ['UMP9','UMP9','UMP9',
 			   'M416','M416',
 			   'Kar-98K','Kar-98K',
 			   'SKS','SKS',
+			   'M24',
 			   'AWM',
 			   'MK14','MK14',
 			   'M249','M249',
 			   'S1897','S1897',
+			   'S686','S686',
 			   'Minigun','Minigun',
 			   'Dominator-77',
 			   'PF-89'];
@@ -626,6 +628,20 @@ Q.weapon_data['SKS']={
 		};
 Q.weapon_ammo['SKS']=15;
 
+Q.weapon_data['M24']={
+			speed : 580,
+			reload : 3,
+			bias : 0,
+			life : 12,
+			damage : 90,
+			recoil : 25,
+			sight : 1.4,
+			size : 2,
+			penetrate : true,
+			bounce : false
+		};
+Q.weapon_ammo['M24']=5;
+
 Q.weapon_data['AWM']={
 			speed : 580,
 			reload : 2.5,
@@ -650,17 +666,18 @@ Q.weapon_data['MK14']={
 			sight : 1.1,
 			size : 3,
 			penetrate : false,
-			bounce : false
+			bounce : false,
+			bundle : 2
 		};
 Q.weapon_ammo['MK14']=15;
 
 //霰弹枪
 Q.weapon_data['S1897']={
 			speed : 600,
-			reload : 1.5,
+			reload : 0.8,
 			bias : 0.2,
 			life : 4,
-			damage : 20,
+			damage : 15,
 			recoil : 45,
 			sight : 1,
 			size : 4,
@@ -669,6 +686,21 @@ Q.weapon_data['S1897']={
 			bundle : 5
 		};
 Q.weapon_ammo['S1897']=10;
+
+Q.weapon_data['S686']={
+			speed : 620,
+			reload : 2,
+			bias : 0.3,
+			life : 3,
+			damage : 32,
+			recoil : 50,
+			sight : 1,
+			size : 5,
+			penetrate : false,
+			bounce : false,
+			bundle : 6
+		};
+Q.weapon_ammo['S686']=8;
 
 //轻机枪
 Q.weapon_data['M249']={

@@ -154,6 +154,8 @@ Q.client_core = Q.core.extend({
 		this.game.ctx.restore();
 
 		//小地图设置
+		this.minimap_open = true;
+		this.can_turn = true;
 		this.minimap_width = this.global_width / this.block_width;
 		this.minimap_height = this.global_height / this.block_height;
 
@@ -302,6 +304,7 @@ Q.client_core = Q.core.extend({
 	client_add_animation: function(type,eff,entity) {
 		var anim = {};
 		if (eff=='underatk' || eff=='fadeout') {
+			if (entity.alpha && entity.alpha!==1) return;
 			if (!entity.size) entity.size=player_size;
 			if (!entity.alpha) entity.alpha=1;
 			anim = {type:type,
@@ -356,7 +359,7 @@ Q.client_core = Q.core.extend({
 
 				$.extend(true,this.state.players[id],state.players[index]);
 				if (animation) {
-					if (!this.render_list[id]) this.render_list[id]={};
+					this.render_list[id]={alpha:1,size:this.state.players[id].size};
 
 					//其他玩家受攻击时的闪烁动画
 					if (state.players[index].health && state.players[index].health.cur)
@@ -377,6 +380,7 @@ Q.client_core = Q.core.extend({
 			if (authority_me &&
 				authority_me.health && 
 				authority_me.health.cur) {
+				this.render_list[this.id]={alpha:1,size:this.state.players[this.id].size};
 				this.client_add_animation('player','underatk',this.render_list[this.id]);
 				this.client_playaudio('underattack');
 		}
@@ -451,6 +455,11 @@ Q.client_core = Q.core.extend({
 			km = km + 'f';
 			this.can_use = false;
 			setTimeout((()=>{this.can_use=true}).bind(this),1000);
+		}
+		if (kb.pressed('M') && this.can_turn) {
+			this.minimap_open = !this.minimap_open;
+			this.can_turn = false;
+			setTimeout((()=>{this.can_turn=true}).bind(this),500);
 		}
 		if (this.is_mouse_down_hold && this.can_atk) {
 			km = km + 'j';
@@ -911,7 +920,7 @@ Q.client_core = Q.core.extend({
 			if (!!this.state.weapons[index])
 				this.client_render_weapon(this.state.weapons[index]);
 		}
-		this.client_render_minimap(s);
+		if (this.minimap_open) this.client_render_minimap(s);
 		this.client_render_animsg();
 
 		this.game.ctx.scale(s,s);
