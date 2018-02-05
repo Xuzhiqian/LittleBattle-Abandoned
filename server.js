@@ -189,15 +189,15 @@ Q.server_core = Q.core.extend({
 		var index = this.boxes.push(new_box) - 1;
 		this.trigger('new_box', {box:new_box, index:index});
 	},
-	server_generate_weapon: function() {
-		var pos = {
+	server_generate_weapon: function(_id,_pos,_ammo) {
+		var pos = _pos || {
 				x: Math.floor(Math.random() * this.global_width),
 				y: Math.floor(Math.random() * this.global_height)
 			};
 		if (this.check_terrain(pos)==true) return;
 
-		var new_wpn = new Q.weapon(pos,weapons[Math.floor(Math.random()*weapons.length)]);
-		new_wpn.ammo = Q.weapon_ammo[new_wpn.id];
+		var new_wpn = new Q.weapon(pos,_id || weapons[Math.floor(Math.random()*weapons.length)]);
+		new_wpn.ammo = _ammo || Q.weapon_ammo[new_wpn.id];
 		var index = this.weapons.push(new_wpn) - 1;
 		this.trigger('new_weapon',{weapon:new_wpn, index:index});
 	},
@@ -250,18 +250,9 @@ Q.server_core = Q.core.extend({
 			if (this.inputs[id] != undefined) {
 				for (var unit_index in this.inputs[id]) {
 					var msg = this.inputs[id][unit_index];
-					
-					this.decodeInput(msg);
 					this.process_inputs(this.players[id], msg.input, 0.016689);
-					if (msg.input.kb.indexOf('j') !== -1) {
-						if (this.players[id].isArmed()) {
-							if (this.players[id].ammo>0)
-								this.players[id].ammo-=1;
-							else 
-								this.players[id].unequip();
-						}
-						this.server_new_bullet(this.players[id]);
-					}
+					if (msg.input.kb.indexOf('j') !== -1)
+						this.server_player_shoot(id);
 					if (msg.input.kb.indexOf('f') !== -1)
 						this.server_player_use(id);
 					
@@ -289,20 +280,41 @@ Q.server_core = Q.core.extend({
 			if (!!this.boxes[index]) {
 				var b = this.boxes[index];
 				b.update(dt);
-				if (b.destroyable==true) this.server_delete_box(index);
+				if (b.destroyable===true) this.server_delete_box(index);
 			}
 	},
 	
 	server_player_use: function (pid) {
+		var p = this.players[pid];
+		if (p==undefined) return;
+		if (p.isArmed()===true && p.ammo>0)
+		{
+			this.server_generate_weapon(p.weapon,p.pos,p.ammo);
+			this.players[pid].unequip();
+			return;
+		}
 		for (var index in this.weapons) {
 			var w = this.weapons[index];
 			if (w!=null)
-				if (dis(this.players[pid].pos,w.pos)<this.players[pid].size+25) {
+				if (dis(p.pos,w.pos)<p.size+25) {
 					this.players[pid].equip(w);
 					this.server_delete_weapon(index);
+					this.trigger('player_alert',{id:pid,type:'reward'});
 					break;
 				}
 		}
+	},
+
+	server_player_shoot: function (pid) {
+		var p = this.players[pid];
+		if (p.isArmed()) {
+			if (p.ammo>0)
+				this.players[pid].ammo-=1;
+			else 
+				this.players[pid].unequip();
+		}
+		for (var i=0;i<(p.prop.bundle || 1);i++)
+			this.server_new_bullet(p);
 	},
 
 	server_bullet_check_hit: function (bullet) {
@@ -320,7 +332,7 @@ Q.server_core = Q.core.extend({
 						this.trigger('player_gameover', {pid: id, kid: bullet.owner_id});
 					}
 					else
-						this.trigger('hit',bullet.owner_id);
+						this.trigger('player_alert',{id:bullet.owner_id,type:'attack'});
 					
 					bullet.destroyable = true;
 					break;
@@ -351,8 +363,8 @@ Q.server_core = Q.core.extend({
 
 		p.score+=box.health.max/10;
 
-		//var isrd = this.lucks[pid] || 0.3;
-		//if (Math.random()>isrd) return;
+		var isrd = this.lucks[pid] || 0.3;
+		if (Math.random()>isrd) return;
 
 		var c = Math.floor(rewards.length*Math.random());
 		
@@ -469,6 +481,7 @@ var weapons = ['UMP9','UMP9','UMP9',
 			   'AWM',
 			   'MK14','MK14',
 			   'M249','M249',
+			   'S1897','S1897',
 			   'Minigun','Minigun',
 			   'Dominator-77',
 			   'PF-89'];
@@ -640,6 +653,22 @@ Q.weapon_data['MK14']={
 			bounce : false
 		};
 Q.weapon_ammo['MK14']=15;
+
+//霰弹枪
+Q.weapon_data['S1897']={
+			speed : 600,
+			reload : 1.5,
+			bias : 0.2,
+			life : 4,
+			damage : 20,
+			recoil : 45,
+			sight : 1,
+			size : 4,
+			penetrate : false,
+			bounce : false,
+			bundle : 5
+		};
+Q.weapon_ammo['S1897']=10;
 
 //轻机枪
 Q.weapon_data['M249']={

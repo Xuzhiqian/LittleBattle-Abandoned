@@ -272,30 +272,14 @@ Q.core = Q.Evented.extend({
 			p.dir = inputs.ms;
 	},
 
-	encodeInput : function(msg) {
-		var v = 0;
-		var input = msg.input.kb;
-		if (input.indexOf('w')!=-1) v=(v+1)%3;
-		if (input.indexOf('s')!=-1) v=(v+2)%3;
-
-		var h = 0;
-		if (input.indexOf('a')!=-1) h=(h+1)%3;
-		if (input.indexOf('d')!=-1) h=(h+2)%3;
-
-		var d = v + h * 3;
-		if (input.indexOf('f')!=-1) d=d+9;
-		if (input.indexOf('j')!=-1) d=d+18;
-		if (d<10) msg.input.kb=String.fromCharCode(48+d);
-		else msg.input.kb=String.fromCharCode(55+d);
-	},
-
 	compressInput : function(msg) {
 		var c = '';
-		if (msg.input.kb>='I')
+		if (msg.input.kb.indexOf('j'))
 			c = c +msg.seq+','+msg.input.kb+','+msg.input.ms;
 		else
 			c = c+ msg.seq+','+msg.input.kb+',';
 		return c;
+		console.log(c);
 	},
 
 	decompressInput : function(c) {
@@ -309,32 +293,6 @@ Q.core = Q.Evented.extend({
 		if (para[2]!=='')
 			msg.input.ms = parseFloat(para[2]);
 		return msg;
-	},
-
-	decodeInput : function(msg) {
-		var input = msg.input.kb.charCodeAt(0);
-		var org = '';
-
-		if (48<=input && input<=57)
-			input = input - 48;
-		else
-			input = input - 55;
-
-		if (input>=18) {
-			org=org+'j';
-			input %= 18;
-		}
-		if (input>=9) {
-			org=org+'f';
-			input %= 9;
-		}
-		var h = Math.floor(input / 3);
-		var v = input % 3;
-		if (h==1) org=org+'a';
-		if (h==2) org=org+'d';
-		if (v==1) org=org+'w';
-		if (v==2) org=org+'s';
-		msg.input.kb = org;
 	},
 
 	check_terrain: function(pos) {

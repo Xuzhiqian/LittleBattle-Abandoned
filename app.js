@@ -54,9 +54,9 @@ core.bind('delete_box', function (bindex) {
 	io.emit('delete_box', bindex);
 });
 
-core.bind('hit',function(id) {
-	if (sockets[id]!=null)
-		sockets[id].emit('hit');
+core.bind('player_alert',function(ct) {
+	if (sockets[ct.id]!=null)
+		sockets[ct.id].emit('player_alert',ct.type);
 });
 
 core.bind('player_reward',function(reward_info) {

@@ -98,6 +98,7 @@ Q.client_core = Q.core.extend({
 		
 		//攻击设置
 		this.can_atk = true;
+		this.can_use = true;
 		this.is_mouse_down_hold = false;
 		//攻击设置结束
 		
@@ -189,7 +190,7 @@ Q.client_core = Q.core.extend({
 		
 		this.game.socket.on('init_surrounding', this.client_init_sur.bind(this));
 		this.game.socket.on('player_gameover', this.client_gameover.bind(this));
-		this.game.socket.on('hit',this.client_hit.bind(this));
+		this.game.socket.on('player_alert',this.client_alert.bind(this));
 		this.game.socket.on('new_player', this.client_newplayerjoin.bind(this));
 		this.game.socket.on('player_disconnect', this.client_playerdisconnect.bind(this));
 		
@@ -212,8 +213,8 @@ Q.client_core = Q.core.extend({
 		delete this.state.players[state.id];
 	},
 
-	client_hit: function() {
-		this.client_playaudio('attack');
+	client_alert: function(type) {
+		this.client_playaudio(type);
 	},
 	
 	client_getnewbullet: function (new_bullet) {
@@ -380,10 +381,6 @@ Q.client_core = Q.core.extend({
 				this.client_playaudio('underattack');
 		}
 
-		//音频
-		if (authority_me.prop)
-			this.client_playaudio('reward');
-
 		var head = -1;
 		
 		for (var index in state.seqs)
@@ -450,13 +447,15 @@ Q.client_core = Q.core.extend({
 		if (h.indexOf('ad')!=-1) h='';
 
 		var km = v + h;
-		if (kb.pressed('F')) km = km + 'f';
+		if (kb.pressed('F') && this.can_use) {
+			km = km + 'f';
+			this.can_use = false;
+			setTimeout((()=>{this.can_use=true}).bind(this),1000);
+		}
 		if (this.is_mouse_down_hold && this.can_atk) {
 			km = km + 'j';
 			this.can_atk = false;
-			setTimeout((function () {
-				this.can_atk = true;
-			}).bind(this), this.me.prop.reload * 1000);
+			setTimeout((()=>{this.can_atk = true}).bind(this), this.me.prop.reload * 1000);
 			if (animation)
 				this.client_add_animation('system','reload',this.me.prop.reload);
 		}
@@ -490,7 +489,6 @@ Q.client_core = Q.core.extend({
 			var msg = this.client_capture_input(dt);
 			this.client_predict(msg, dt);
 
-			this.encodeInput(msg);
 			this.game.socket.send(this.compressInput(msg));
 
 			this.client_update_bullets(dt);
@@ -710,7 +708,7 @@ Q.client_core = Q.core.extend({
 					ctx.fillStyle = 'rgba(136,136,136,' + (i + 1) / this.messages.length + ')';
 				else
 					ctx.fillStyle = 'rgba(255,255,255,' + (i + 1) / this.messages.length + ')';
-				ctx.fillText(this.messages.text[(i + this.messages.tail) % this.messages.length], map_width - 150, 60 + i * 20);
+				ctx.fillText(this.messages.text[(i + this.messages.tail) % this.messages.length], map_width - 170, 60 + i * 20);
 			}
 		}
 		if (this.me.ammo>0) {
