@@ -319,6 +319,9 @@ Q.server_core = Q.core.extend({
 						this.server_remove_player(id);
 						this.trigger('player_gameover', {pid: id, kid: bullet.owner_id});
 					}
+					else
+						this.trigger('hit',bullet.owner_id);
+					
 					bullet.destroyable = true;
 					break;
 				}
@@ -348,8 +351,8 @@ Q.server_core = Q.core.extend({
 
 		p.score+=box.health.max/10;
 
-		var isrd = this.lucks[pid] || 0.3;
-		if (Math.random()>isrd) return;
+		//var isrd = this.lucks[pid] || 0.3;
+		//if (Math.random()>isrd) return;
 
 		var c = Math.floor(rewards.length*Math.random());
 		
@@ -421,8 +424,6 @@ Q.server_core = Q.core.extend({
 		}
 		this.seqs = [];
 		state.players = diff(old,now);
-		if (now[0].invisible==true)
-			console.log(JSON.stringify(state.players));
 		this.memory = JSON.stringify(now);
 
 		for (var index in state.players) {
@@ -493,8 +494,8 @@ Q.weapon_data['Micro_Uzi']={
 			reload : 0.1,
 			bias : 0.05,
 			life : 7,
-			damage : 2,
-			recoil : 2,
+			damage : 4,
+			recoil : 1,
 			sight : 1,
 			size : 2,
 			penetrate : false,
@@ -506,8 +507,8 @@ Q.weapon_data['Vector']={
 			speed : 290,
 			reload : 0.2,
 			bias : 0.08,
-			life : 5,
-			damage : 5,
+			life : 6,
+			damage : 6,
 			recoil : 1,
 			sight : 1,
 			size : 4,
@@ -522,7 +523,7 @@ Q.weapon_data['AKM']={
 			reload : 0.25,
 			bias : 0.15,
 			life : 8,
-			damage : 15,
+			damage : 25,
 			recoil : 5,
 			sight : 1,
 			size : 6,
@@ -536,7 +537,7 @@ Q.weapon_data['Groza']={
 			reload : 0.22,
 			bias : 0.1,
 			life : 8,
-			damage : 10,
+			damage : 15,
 			recoil : 1,
 			sight : 1.05,
 			penetrate : false,
@@ -549,7 +550,7 @@ Q.weapon_data['M16A4']={
 			reload : 0.24,
 			bias : 0.12,
 			life : 7,
-			damage : 8,
+			damage : 14,
 			recoil : 2,
 			sight : 1,
 			penetrate : false,
@@ -562,7 +563,7 @@ Q.weapon_data['Scar-L']={
 			reload : 0.23,
 			bias : 0.08,
 			life : 6,
-			damage : 7,
+			damage : 12,
 			recoil : 1.5,
 			sight : 1,
 			penetrate : false,
@@ -614,8 +615,8 @@ Q.weapon_ammo['SKS']=15;
 
 Q.weapon_data['AWM']={
 			speed : 580,
-			reload : 1.5,
-			bias : 0.02,
+			reload : 2.5,
+			bias : 0.01,
 			life : 13,
 			damage : 100,
 			recoil : 5,
@@ -636,7 +637,7 @@ Q.weapon_data['MK14']={
 			sight : 1.1,
 			size : 3,
 			penetrate : false,
-			bounce : true
+			bounce : false
 		};
 Q.weapon_ammo['MK14']=15;
 
@@ -686,14 +687,14 @@ Q.weapon_ammo['Dominator-77']=80;
 //火箭炮
 Q.weapon_data['PF-89']={
 			speed : 150,
-			reload : 5,
+			reload : 3,
 			bias : 0.05,
-			life : 30,
+			life : 60,
 			damage : 120,
-			recoil : 30,
+			recoil : 50,
 			sight : 1.4,
 			size : 12,
-			penetrate : true,
+			penetrate : false,
 			bounce : true
 		};
 Q.weapon_ammo['PF-89']=5;

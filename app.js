@@ -27,7 +27,7 @@ core.id_sendstate = setInterval(function () {
 }, core.tickrate);
 
 core.bind('new_bullet', function (bullet) {
-	io.emit('new_bullet', bullet);
+	io.emit('new_bullet', JSON.stringify(bullet));
 });
 
 core.bind('delete_bullet', function (bindex) {
@@ -35,11 +35,11 @@ core.bind('delete_bullet', function (bindex) {
 });
 
 core.bind('new_box', function (box) {
-	io.emit('new_box', box);
+	io.emit('new_box', JSON.stringify(box));
 });
 
 core.bind('new_weapon', function (wpn) {
-	io.emit('new_weapon', wpn);
+	io.emit('new_weapon', JSON.stringify(wpn));
 });
 
 core.bind('delete_weapon', function (windex) {
@@ -54,11 +54,14 @@ core.bind('delete_box', function (bindex) {
 	io.emit('delete_box', bindex);
 });
 
+core.bind('hit',function(id) {
+	if (sockets[id]!=null)
+		sockets[id].emit('hit');
+});
+
 core.bind('player_reward',function(reward_info) {
-	for (var id in sockets) {
-		if (sockets[id]!=null && id==reward_info.id)
-			sockets[id].emit('player_reward',reward_info.reward);
-	}
+		if (sockets[reward_info.id]!=null)
+			sockets[reward_info.id].emit('player_reward',reward_info.reward);
 });
 
 core.bind('player_gameover', function (pkid) {

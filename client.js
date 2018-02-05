@@ -129,6 +129,22 @@ Q.client_core = Q.core.extend({
 		this.game.ctx.font = '13px "Futura';
 		this.game.ctx.scale(ratio,ratio);
 
+		//音频设置
+		this.audio=[];
+		var loadAudio = function(audio,type,num) {
+			audio[type]=[];
+			for (var i=1;i<=num;i++) {
+				var au = document.getElementById(type+i);
+				au.volume = 0.45;
+				au.playbackRate = 1.4;
+				audio[type].push(au);
+			}
+		}
+		loadAudio(this.audio,'reward',9);
+		loadAudio(this.audio,'kill',6);
+		loadAudio(this.audio,'attack',4);
+		loadAudio(this.audio,'underattack',3);
+
 		//绘制Loading界面
 		this.game.ctx.save();
 		this.game.ctx.font = '40px "Futura';
@@ -172,12 +188,18 @@ Q.client_core = Q.core.extend({
 		this.game.socket.on('delete_weapon',this.client_deleteweapon.bind(this));
 		
 		this.game.socket.on('init_surrounding', this.client_init_sur.bind(this));
-		this.game.socket.on('player_gameover', this.client_gameover.bind(this));		//玩家死亡
+		this.game.socket.on('player_gameover', this.client_gameover.bind(this));
+		this.game.socket.on('hit',this.client_hit.bind(this));
 		this.game.socket.on('new_player', this.client_newplayerjoin.bind(this));
 		this.game.socket.on('player_disconnect', this.client_playerdisconnect.bind(this));
 		
 	},
 	
+	client_playaudio: function(type) {
+		if (this.audio[type])
+			this.audio[type][Math.floor(Math.random()*this.audio[type].length)].play();
+	},
+
 	client_newplayerjoin: function (state) {
 		this.messages.newmsg(state.id + ' joins the game');
 		this.player_count = state.count;
@@ -189,12 +211,18 @@ Q.client_core = Q.core.extend({
 		this.player_count = state.count;
 		delete this.state.players[state.id];
 	},
+
+	client_hit: function() {
+		this.client_playaudio('attack');
+	},
 	
 	client_getnewbullet: function (new_bullet) {
+		new_bullet = JSON.parse(new_bullet);
 		this.state.bullets[new_bullet.index] = new_bullet.bullet;
 	},
 
 	client_getnewweapon: function (new_wpn) {
+		new_wpn = JSON.parse(new_wpn);
 		this.state.weapons[new_wpn.index] = new_wpn.weapon;
 	},
 	
@@ -209,6 +237,7 @@ Q.client_core = Q.core.extend({
 	},
 
 	client_getnewbox: function (new_box) {
+		new_box = JSON.parse(new_box);
 		this.state.boxes[new_box.index] = new_box.box;
 	},
 
@@ -252,6 +281,7 @@ Q.client_core = Q.core.extend({
 			var index = this.animsg_list.push({text:msg,alpha:0,displayed:false}) -1;
 			this.client_add_animation('system','message',this.animsg_list[index]);
 		}
+		this.client_playaudio('reward');
 	},
 
 	client_init_sur: function (sur) {
@@ -345,8 +375,14 @@ Q.client_core = Q.core.extend({
 		if (animation)
 			if (authority_me &&
 				authority_me.health && 
-				authority_me.health.cur)
+				authority_me.health.cur) {
 				this.client_add_animation('player','underatk',this.render_list[this.id]);
+				this.client_playaudio('underattack');
+		}
+
+		//音频
+		if (authority_me.prop)
+			this.client_playaudio('reward');
 
 		var head = -1;
 		
@@ -889,8 +925,10 @@ Q.client_core = Q.core.extend({
 			this.messages.newmsg(state.id.kid + ' terminates ' + state.id.pid);
 			this.player_count = state.count;
 			delete this.state.players[state.id.pid];
-			if (state.id.kid === this.id)		//己方确认击杀
+			if (state.id.kid === this.id) {		//己方确认击杀
 				this.kills += 1;
+				this.client_playaudio('kill');
+			}
 		}
 		else {
 			this.game.socket.disconnect();
