@@ -145,6 +145,14 @@ Q.client_core = Q.core.extend({
 		loadAudio(this.audio,'kill',6);
 		loadAudio(this.audio,'attack',4);
 		loadAudio(this.audio,'underattack',3);
+		this.audio['weapon']=[];
+		for (var id in Q.weapon_data) {
+			var au = document.getElementById('audio_'+id);
+			au.volume = 0.6;
+			if (au.duration > Q.weapon_data[id].reload)
+				au.playbackRate = au.duration / Q.weapon_data[id].reload;
+			this.audio['weapon'][id]=au;
+		}
 
 		//绘制Loading界面
 		this.game.ctx.save();
@@ -201,6 +209,13 @@ Q.client_core = Q.core.extend({
 	client_playaudio: function(type) {
 		if (this.audio[type])
 			this.audio[type][Math.floor(Math.random()*this.audio[type].length)].play();
+	},
+
+	client_playshootaudio: function(weapon_id) {
+		if (this.audio['weapon'][weapon_id]) {
+			this.audio['weapon'][weapon_id].currentTime = 0;
+			this.audio['weapon'][weapon_id].play();
+		}
 	},
 
 	client_newplayerjoin: function (state) {
@@ -265,9 +280,9 @@ Q.client_core = Q.core.extend({
 
 			switch (reward) {
 				case 'heal':
-					msg = 'Utility Bandage : Health + 10'; break;
+					msg = 'Utility Bandage : Full Health'; break;
 				case 'maxhealth':
-					msg = 'Magic Tablet : Max Health + 5'; break;
+					msg = 'Magic Tablet : Max Health + 10'; break;
 				case 'faster':
 					msg = 'Engine Upgrade : Speed + 10'; break;
 				case 'accer':
@@ -379,7 +394,8 @@ Q.client_core = Q.core.extend({
 		if (animation)
 			if (authority_me &&
 				authority_me.health && 
-				authority_me.health.cur) {
+				authority_me.health.cur &&
+				authority_me.health.cur < this.state.players[this,id].health.cur) {
 				this.render_list[this.id]={alpha:1,size:this.state.players[this.id].size};
 				this.client_add_animation('player','underatk',this.render_list[this.id]);
 				this.client_playaudio('underattack');
@@ -461,7 +477,7 @@ Q.client_core = Q.core.extend({
 			this.can_turn = false;
 			setTimeout((()=>{this.can_turn=true}).bind(this),500);
 		}
-		if (this.is_mouse_down_hold && this.can_atk) {
+		if ((this.is_mouse_down_hold || this.id==='auto') && this.can_atk) {
 			km = km + 'j';
 			this.can_atk = false;
 			setTimeout((()=>{this.can_atk = true}).bind(this), this.me.prop.reload * 1000);
@@ -482,8 +498,12 @@ Q.client_core = Q.core.extend({
 	client_predict: function(msg,dt) {
 		var me = this.state.players[this.id];
 		this.process_inputs(me, msg.input, dt);				//客户端立即更新状态
-		if (msg.input.kb.indexOf('j')>=0 && me.weapon && me.weapon.length>0)
+		if (msg.input.kb.indexOf('j')>=0 && me.weapon && me.weapon.length>0) {
 			if (me.ammo>0)	me.ammo-=1;
+			else if (me.weapon!=='Pan') this.state.players[this.id].weapon = '';
+			if (me.weapon.length>0) this.client_playshootaudio(me.weapon);
+		}
+
 
 		this.buffer[this.seq] = {};
 		this.buffer[this.seq].player = {};
@@ -611,7 +631,7 @@ Q.client_core = Q.core.extend({
 		ctx.translate(weapon.pos.x - this.me.pos.x + this.mapX, weapon.pos.y - this.me.pos.y + this.mapY);
 
 		var img = document.getElementById(weapon.id);
-		ctx.drawImage(img,0,0,70,70);
+		ctx.drawImage(img,0,0,60,60);
 
 		ctx.restore();
 	},
@@ -722,7 +742,7 @@ Q.client_core = Q.core.extend({
 		}
 		if (this.me.ammo>0) {
 			ctx.font = '20px "Futura"';
-			ctx.fillText(this.me.ammo,map_width/2,map_height - 50);
+			ctx.fillText(this.me.ammo+'    '+this.me.weapon,map_width/2 - 50,map_height - 50);
 		}
 
 		ctx.restore();

@@ -63,6 +63,7 @@ Q.game_player = function(alias) {
 	this.alpha = 1;
 	this.invisible = false;
 	this.radar = false;
+	this.reflect = false;
 };
 
 Q.game_player.prototype.isArmed = function() {
@@ -70,23 +71,13 @@ Q.game_player.prototype.isArmed = function() {
 };
 
 Q.game_player.prototype.equip = function(weapon) {
-	if (this.isArmed()) {
-		if (this.weapon==weapon.id)
-			this.ammo += weapon.ammo;
-		else {
-			this.unequip();
-			this.equip(weapon);
-		}
-	}
-	else {
 		this.weapon = weapon.id;
 		this.ammo = weapon.ammo;
 		this.prop = Q.weapon_data[weapon.id];
-	}
 };
 
 Q.game_player.prototype.unequip = function() {
-	delete this.weapon;
+	this.weapon = '';
 	this.ammo = 0;
 	this.prop = prop_org;
 }
@@ -110,14 +101,14 @@ Q.bullet = function (p) {
 	//弹道偏移
 	var b = p.prop.bias;
 	var start_dir = p.dir + Math.PI / 2 * (Math.random() * 2 * b - b);
-	this.dir = {x: Math.cos(start_dir), y: Math.sin(start_dir)};
+	this.dir = {x: Q.fix(Math.cos(start_dir)), y: Q.fix(Math.sin(start_dir))};
 };
 
 Q.box = function (pos) {
 	this.pos = {x:pos.x, y:pos.y};
-	var maxhp = Math.floor(Math.random()*10+1)*10;		//血量随机
+	var maxhp = Math.floor(Math.random()*8+2)*10;		//血量随机
 	this.health = {cur:maxhp, max:maxhp};
-	this.life = {cur:0, max:60};
+	this.life = {cur:0, max:80};
 	this.size = 12;
 	this.destroyable = false;
 	this.alpha = 1;
@@ -304,6 +295,289 @@ Q.core = Q.Evented.extend({
 		return true;
 	}
 });
+
+Q.weapon_data = [];
+Q.weapon_ammo = [];
+
+//冲锋枪
+Q.weapon_data['UMP9']={
+			speed : 270,
+			reload : 0.3,
+			bias : 0.08,
+			life : 6,
+			damage : 6,
+			recoil : 2,
+			sight : 1,
+			penetrate : false,
+			bounce : false
+		};
+Q.weapon_ammo['UMP9']=30;
+
+Q.weapon_data['Micro_Uzi']={
+			speed : 280,
+			reload : 0.1,
+			bias : 0.05,
+			life : 7,
+			damage : 4,
+			recoil : 1,
+			sight : 1,
+			size : 2,
+			penetrate : false,
+			bounce : false
+		};
+Q.weapon_ammo['Micro_Uzi']=90;
+
+Q.weapon_data['Vector']={
+			speed : 290,
+			reload : 0.2,
+			bias : 0.08,
+			life : 6,
+			damage : 6,
+			recoil : 1,
+			sight : 1,
+			size : 4,
+			penetrate : false,
+			bounce : false
+		};
+Q.weapon_ammo['Vector']=50;
+
+//突击步枪
+Q.weapon_data['AKM']={
+			speed : 300,
+			reload : 0.25,
+			bias : 0.15,
+			life : 8,
+			damage : 25,
+			recoil : 5,
+			sight : 1,
+			size : 6,
+			penetrate : false,
+			bounce : false
+		};
+Q.weapon_ammo['AKM']=30;
+
+Q.weapon_data['Groza']={
+			speed : 290,
+			reload : 0.22,
+			bias : 0.1,
+			life : 8,
+			damage : 15,
+			recoil : 1,
+			sight : 1.05,
+			penetrate : false,
+			bounce : false
+		};
+Q.weapon_ammo['Groza']=60;
+
+Q.weapon_data['M16A4']={
+			speed : 300,
+			reload : 0.24,
+			bias : 0.12,
+			life : 7,
+			damage : 14,
+			recoil : 2,
+			sight : 1,
+			penetrate : false,
+			bounce : false
+		};
+Q.weapon_ammo['M16A4']=30;
+
+Q.weapon_data['Scar-L']={
+			speed : 310,
+			reload : 0.23,
+			bias : 0.08,
+			life : 6,
+			damage : 12,
+			recoil : 1.5,
+			sight : 1,
+			penetrate : false,
+			bounce : false
+		};
+Q.weapon_ammo['Scar-L']=40;
+
+Q.weapon_data['M416']={
+			speed : 330,
+			reload : 0.26,
+			bias : 0.08,
+			life : 6,
+			damage : 10,
+			recoil : 1.5,
+			sight : 1,
+			penetrate : false,
+			bounce : false
+		};
+Q.weapon_ammo['M416']=40;
+
+//狙击步枪
+Q.weapon_data['Kar-98K']={
+			speed : 600,
+			reload : 1.2,
+			bias : 0.04,
+			life : 12,
+			damage : 50,
+			recoil : 12,
+			sight : 1.1,
+			size : 3,
+			penetrate : true,
+			bounce : false
+		};
+Q.weapon_ammo['Kar-98K']=15;
+
+Q.weapon_data['SKS']={
+			speed : 580,
+			reload : 1,
+			bias : 0.03,
+			life : 13,
+			damage : 45,
+			recoil : 5,
+			sight : 1.1,
+			size : 3.5,
+			penetrate : false,
+			bounce : false
+		};
+Q.weapon_ammo['SKS']=15;
+
+Q.weapon_data['M24']={
+			speed : 580,
+			reload : 3,
+			bias : 0,
+			life : 12,
+			damage : 90,
+			recoil : 25,
+			sight : 1.4,
+			size : 2,
+			penetrate : true,
+			bounce : false
+		};
+Q.weapon_ammo['M24']=5;
+
+Q.weapon_data['AWM']={
+			speed : 580,
+			reload : 2.5,
+			bias : 0.01,
+			life : 13,
+			damage : 100,
+			recoil : 5,
+			sight : 1.2,
+			size : 2.5,
+			penetrate : true,
+			bounce : false
+		};
+Q.weapon_ammo['AWM']=10;
+
+Q.weapon_data['MK14']={
+			speed : 400,
+			reload : 0.8,
+			bias : 0.03,
+			life : 12,
+			damage : 50,
+			recoil : 4,
+			sight : 1.1,
+			size : 3,
+			penetrate : false,
+			bounce : false,
+			bundle : 2
+		};
+Q.weapon_ammo['MK14']=15;
+
+//霰弹枪
+Q.weapon_data['S1897']={
+			speed : 600,
+			reload : 0.8,
+			bias : 0.2,
+			life : 4,
+			damage : 15,
+			recoil : 45,
+			sight : 1,
+			size : 4,
+			penetrate : false,
+			bounce : false,
+			bundle : 5
+		};
+Q.weapon_ammo['S1897']=10;
+
+Q.weapon_data['S686']={
+			speed : 620,
+			reload : 2,
+			bias : 0.3,
+			life : 3,
+			damage : 32,
+			recoil : 50,
+			sight : 1,
+			size : 5,
+			penetrate : false,
+			bounce : false,
+			bundle : 6
+		};
+Q.weapon_ammo['S686']=8;
+
+//轻机枪
+Q.weapon_data['M249']={
+			speed : 380,
+			reload : 0.12,
+			bias : 0.05,
+			life : 12,
+			damage : 10,
+			recoil : 1,
+			sight : 1,
+			size : 4,
+			penetrate : false,
+			bounce : false
+		};
+Q.weapon_ammo['M249']=100;
+
+Q.weapon_data['Minigun']={
+			speed : 400,
+			reload : 0.11,
+			bias : 0.04,
+			life : 10,
+			damage : 8,
+			recoil : 2,
+			sight : 1,
+			penetrate : false,
+			bounce : false
+		};
+Q.weapon_ammo['Minigun']=100;
+
+//重机枪
+Q.weapon_data['Dominator-77']={
+			speed : 420,
+			reload : 0.12,
+			bias : 0.1,
+			life : 15,
+			damage : 10,
+			recoil : 0,
+			sight : 1,
+			size : 6,
+			penetrate : true,
+			bounce : false
+		};
+Q.weapon_ammo['Dominator-77']=80;
+
+//火箭炮
+Q.weapon_data['PF-89']={
+			speed : 150,
+			reload : 3,
+			bias : 0.05,
+			life : 60,
+			damage : 120,
+			recoil : 50,
+			sight : 1.4,
+			size : 12,
+			penetrate : false,
+			bounce : true
+		};
+Q.weapon_ammo['PF-89']=5;
+
+Q.weapon_data['Pan']={
+			reload : 1,
+			damage : 35,
+			recoil : 0,
+			sight : 1
+		};
+Q.weapon_ammo['Pan']=0;
+
+
 
 if ('undefined' != typeof global)
 	module.exports = global.Q = Q;

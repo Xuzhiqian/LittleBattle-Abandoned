@@ -94,7 +94,7 @@ Q.server_core = Q.core.extend({
 		if (this.active==false) {
 			this.active=true;
 			this.genbox={cur:0,max:240};
-			this.genwpn={cur:0,max:720};
+			this.genwpn={cur:0,max:72};
 			this.weapons = [];
 			this.boxes = [];
 			this.bullets = [];
@@ -196,7 +196,7 @@ Q.server_core = Q.core.extend({
 			};
 		if (this.check_terrain(pos)==true) return;
 
-		var new_wpn = new Q.weapon(pos,_id || weapons[Math.floor(Math.random()*weapons.length)]);
+		var new_wpn = new Q.weapon(pos,_id || 'Pan');//weapons[Math.floor(Math.random()*weapons.length)]);
 		new_wpn.ammo = _ammo || Q.weapon_ammo[new_wpn.id];
 		var index = this.weapons.push(new_wpn) - 1;
 		this.trigger('new_weapon',{weapon:new_wpn, index:index});
@@ -255,7 +255,6 @@ Q.server_core = Q.core.extend({
 						this.server_player_shoot(id);
 					if (msg.input.kb.indexOf('f') !== -1)
 						this.server_player_use(id);
-					
 					this.seqs[id] = msg.seq;
 				}
 				this.inputs[id] = [];
@@ -269,7 +268,7 @@ Q.server_core = Q.core.extend({
 			if (!!this.bullets[index]) {
 				var b = this.bullets[index];
 				this.update_bullet_physics(b,dt);
-				this.server_bullet_check_hit(b);
+				this.server_bullet_check_hit(index);
 				if (b.destroyable===true) this.server_delete_bullet(index);
 				
 			}
@@ -287,16 +286,17 @@ Q.server_core = Q.core.extend({
 	server_player_use: function (pid) {
 		var p = this.players[pid];
 		if (p==undefined) return;
-		if (p.isArmed()===true && p.ammo>0)
+
+		if (p.isArmed()===true && p.ammo>=0)
 		{
-			this.server_generate_weapon(p.weapon,p.pos,p.ammo);
+			if (p.weapon!=='Pan') this.server_generate_weapon(p.weapon,p.pos,p.ammo);
 			this.players[pid].unequip();
 			return;
 		}
 		for (var index in this.weapons) {
 			var w = this.weapons[index];
 			if (w!=null)
-				if (dis(p.pos,w.pos)<p.size+25) {
+				if (dis(p.pos,w.pos)<p.size+30) {
 					this.players[pid].equip(w);
 					this.server_delete_weapon(index);
 					this.trigger('player_alert',{id:pid,type:'reward'});
@@ -308,32 +308,59 @@ Q.server_core = Q.core.extend({
 	server_player_shoot: function (pid) {
 		var p = this.players[pid];
 		if (p.isArmed()) {
+			if (p.weapon==='Pan') {
+				
+				p.reflect = true;
+				setTimeout(()=>{p.reflect=false},900);
+				for (var id in this.players) {
+					var q = this.players[id];
+					if (id !== pid)
+						if (dis(p.pos,q.pos)<5*p.size)
+							this.server_cause_damage_to_player(pid,id,p.prop.damage);
+				}
+				for (var index in this.boxes) {
+					var b = this.boxes[index];
+					if (dis(p.pos,b.pos)<5*p.size) {
+						this.server_cause_damage_to_box(pid,b,p.prop.damage);
+						this.trigger('box_underattack',{index:index,cur:b.health.cur});
+					}
+				}
+				return;
+			}
+
 			if (p.ammo>0)
 				this.players[pid].ammo-=1;
 			else 
 				this.players[pid].unequip();
 		}
 		for (var i=0;i<(p.prop.bundle || 1);i++)
-			this.server_new_bullet(p);
+			this.server_new_bullet(this.players[pid]);
 	},
 
-	server_bullet_check_hit: function (bullet) {
+	server_bullet_check_hit: function (bindex) {
+		var bullet = this.bullets[bindex];
 		for (var id in this.players) {
 			var p = this.players[id];
 			if (id != bullet.owner_id)
-				if (dis(bullet.pos, p.pos) < bullet.size + p.size) { 
+				if (dis(bullet.pos, p.pos) < bullet.size + p.size) {
 
-					p.invisible = false;
-					p.health.cur += Math.min(p.shield-bullet.damage,0);
-					p.shield = Math.max(p.shield-bullet.damage,0);
+					if (p.reflect===true) {
 
-					if (p.health.cur <= 0) {
-						this.server_remove_player(id);
-						this.trigger('player_gameover', {pid: id, kid: bullet.owner_id});
+							var a = Math.atan(bullet.dir.y / bullet.dir.x);
+							if (bullet.dir.x<0) a=a+Math.PI;
+							var r = Math.atan((bullet.pos.y - p.pos.y)/(bullet.pos.x - p.pos.x));
+							if (bullet.pos.x<p.pos.x) r=r+Math.PI;
+
+							var new_dir = 2*r+Math.PI - a;
+							bullet.dir = {x:Math.cos(new_dir),y:Math.sin(new_dir)};
+							bullet.owner_id = id;
+							bullet.color = p.color;
+							this.trigger('new_bullet',{bullet:bullet,index:bindex});
+							continue;
+
 					}
-					else
-						this.trigger('player_alert',{id:bullet.owner_id,type:'attack'});
-					
+
+					this.server_cause_damage_to_player(bullet.owner_id,id,bullet.damage);
 					bullet.destroyable = true;
 					break;
 				}
@@ -344,11 +371,7 @@ Q.server_core = Q.core.extend({
 		for (var index in this.boxes) {
 			var b = this.boxes[index];
 			if (dis(bullet.pos, b.pos) < bullet.size + b.size) {
-				b.health.cur -= bullet.damage;
-				if (b.health.cur <= 0) {
-					this.server_player_reward(bullet.owner_id,b);
-					b.destroyable = true;
-				}
+				this.server_cause_damage_to_box(bullet.owner_id,b,bullet.damage);
 				bullet.destroyable = true;
 				this.trigger('box_underattack',{index:index,cur:b.health.cur});
 				break;
@@ -356,6 +379,26 @@ Q.server_core = Q.core.extend({
 		}
 	},
 
+	server_cause_damage_to_player: function (oid,pid,dmg) {
+		var p = this.players[pid];
+		p.invisible = false;
+		p.health.cur += Math.min(p.shield-dmg,0);
+		p.shield = Math.max(p.shield-dmg,0);
+		if (p.health.cur <= 0) {
+			this.server_remove_player(pid);
+			this.trigger('player_gameover', {pid: pid, kid: oid});
+		}
+		else
+			this.trigger('player_alert',{id:oid,type:'attack'});
+	},
+
+	server_cause_damage_to_box: function (oid,box,dmg) {
+		box.health.cur -= dmg;
+		if (box.health.cur <= 0) {
+			this.server_player_reward(oid,box);
+			box.destroyable = true;
+		}
+	},
 
 	server_player_reward: function(pid, box) {
 		if (!this.players[pid]) return;
@@ -370,11 +413,11 @@ Q.server_core = Q.core.extend({
 		
 		switch (rewards[c]) {
 			case 'heal':
-				p.health.cur = Math.min(p.health.cur+10,p.health.max);
+				p.health.cur = p.health.max;
 				break;
 
 			case 'maxhealth':
-				p.health.max = Math.min(p.health.max+5,150);
+				p.health.max = Math.min(p.health.max+10,150);
 				break;
 
 			case 'faster':
@@ -468,7 +511,7 @@ Q.server_core = Q.core.extend({
 	
 });
 
-var weapons = ['UMP9','UMP9','UMP9',
+var weapons = ['UMP9','UMP9',
 			   'Micro_Uzi','Micro_Uzi',
 			   'Vector','Vector',
 			   'AKM','AKM',
@@ -484,279 +527,9 @@ var weapons = ['UMP9','UMP9','UMP9',
 			   'M249','M249',
 			   'S1897','S1897',
 			   'S686','S686',
-			   'Minigun','Minigun',
+			   'Minigun',
 			   'Dominator-77',
-			   'PF-89'];
-Q.weapon_data = [];
-Q.weapon_ammo = [];
-
-//冲锋枪
-Q.weapon_data['UMP9']={
-			speed : 270,
-			reload : 0.3,
-			bias : 0.08,
-			life : 6,
-			damage : 6,
-			recoil : 2,
-			sight : 1,
-			penetrate : false,
-			bounce : false
-		};
-Q.weapon_ammo['UMP9']=30;
-
-Q.weapon_data['Micro_Uzi']={
-			speed : 280,
-			reload : 0.1,
-			bias : 0.05,
-			life : 7,
-			damage : 4,
-			recoil : 1,
-			sight : 1,
-			size : 2,
-			penetrate : false,
-			bounce : false
-		};
-Q.weapon_ammo['Micro_Uzi']=90;
-
-Q.weapon_data['Vector']={
-			speed : 290,
-			reload : 0.2,
-			bias : 0.08,
-			life : 6,
-			damage : 6,
-			recoil : 1,
-			sight : 1,
-			size : 4,
-			penetrate : false,
-			bounce : false
-		};
-Q.weapon_ammo['Vector']=50;
-
-//突击步枪
-Q.weapon_data['AKM']={
-			speed : 300,
-			reload : 0.25,
-			bias : 0.15,
-			life : 8,
-			damage : 25,
-			recoil : 5,
-			sight : 1,
-			size : 6,
-			penetrate : false,
-			bounce : false
-		};
-Q.weapon_ammo['AKM']=30;
-
-Q.weapon_data['Groza']={
-			speed : 290,
-			reload : 0.22,
-			bias : 0.1,
-			life : 8,
-			damage : 15,
-			recoil : 1,
-			sight : 1.05,
-			penetrate : false,
-			bounce : false
-		};
-Q.weapon_ammo['Groza']=60;
-
-Q.weapon_data['M16A4']={
-			speed : 300,
-			reload : 0.24,
-			bias : 0.12,
-			life : 7,
-			damage : 14,
-			recoil : 2,
-			sight : 1,
-			penetrate : false,
-			bounce : false
-		};
-Q.weapon_ammo['M16A4']=30;
-
-Q.weapon_data['Scar-L']={
-			speed : 310,
-			reload : 0.23,
-			bias : 0.08,
-			life : 6,
-			damage : 12,
-			recoil : 1.5,
-			sight : 1,
-			penetrate : false,
-			bounce : false
-		};
-Q.weapon_ammo['Scar-L']=40;
-
-Q.weapon_data['M416']={
-			speed : 330,
-			reload : 0.26,
-			bias : 0.08,
-			life : 6,
-			damage : 10,
-			recoil : 1.5,
-			sight : 1,
-			penetrate : false,
-			bounce : false
-		};
-Q.weapon_ammo['M416']=40;
-
-//狙击步枪
-Q.weapon_data['Kar-98K']={
-			speed : 600,
-			reload : 1.2,
-			bias : 0.04,
-			life : 12,
-			damage : 50,
-			recoil : 12,
-			sight : 1.1,
-			size : 3,
-			penetrate : true,
-			bounce : false
-		};
-Q.weapon_ammo['Kar-98K']=15;
-
-Q.weapon_data['SKS']={
-			speed : 580,
-			reload : 1,
-			bias : 0.03,
-			life : 13,
-			damage : 45,
-			recoil : 5,
-			sight : 1.1,
-			size : 3.5,
-			penetrate : false,
-			bounce : false
-		};
-Q.weapon_ammo['SKS']=15;
-
-Q.weapon_data['M24']={
-			speed : 580,
-			reload : 3,
-			bias : 0,
-			life : 12,
-			damage : 90,
-			recoil : 25,
-			sight : 1.4,
-			size : 2,
-			penetrate : true,
-			bounce : false
-		};
-Q.weapon_ammo['M24']=5;
-
-Q.weapon_data['AWM']={
-			speed : 580,
-			reload : 2.5,
-			bias : 0.01,
-			life : 13,
-			damage : 100,
-			recoil : 5,
-			sight : 1.2,
-			size : 2.5,
-			penetrate : true,
-			bounce : false
-		};
-Q.weapon_ammo['AWM']=10;
-
-Q.weapon_data['MK14']={
-			speed : 400,
-			reload : 0.8,
-			bias : 0.03,
-			life : 12,
-			damage : 50,
-			recoil : 4,
-			sight : 1.1,
-			size : 3,
-			penetrate : false,
-			bounce : false,
-			bundle : 2
-		};
-Q.weapon_ammo['MK14']=15;
-
-//霰弹枪
-Q.weapon_data['S1897']={
-			speed : 600,
-			reload : 0.8,
-			bias : 0.2,
-			life : 4,
-			damage : 15,
-			recoil : 45,
-			sight : 1,
-			size : 4,
-			penetrate : false,
-			bounce : false,
-			bundle : 5
-		};
-Q.weapon_ammo['S1897']=10;
-
-Q.weapon_data['S686']={
-			speed : 620,
-			reload : 2,
-			bias : 0.3,
-			life : 3,
-			damage : 32,
-			recoil : 50,
-			sight : 1,
-			size : 5,
-			penetrate : false,
-			bounce : false,
-			bundle : 6
-		};
-Q.weapon_ammo['S686']=8;
-
-//轻机枪
-Q.weapon_data['M249']={
-			speed : 380,
-			reload : 0.12,
-			bias : 0.05,
-			life : 12,
-			damage : 10,
-			recoil : 1,
-			sight : 1,
-			size : 4,
-			penetrate : false,
-			bounce : false
-		};
-Q.weapon_ammo['M249']=100;
-
-Q.weapon_data['Minigun']={
-			speed : 400,
-			reload : 0.11,
-			bias : 0.04,
-			life : 10,
-			damage : 8,
-			recoil : 2,
-			sight : 1,
-			penetrate : false,
-			bounce : false
-		};
-Q.weapon_ammo['Minigun']=100;
-
-//重机枪
-Q.weapon_data['Dominator-77']={
-			speed : 420,
-			reload : 0.12,
-			bias : 0.1,
-			life : 15,
-			damage : 10,
-			recoil : 0,
-			sight : 1,
-			size : 6,
-			penetrate : true,
-			bounce : false
-		};
-Q.weapon_ammo['Dominator-77']=80;
-
-//火箭炮
-Q.weapon_data['PF-89']={
-			speed : 150,
-			reload : 3,
-			bias : 0.05,
-			life : 60,
-			damage : 120,
-			recoil : 50,
-			sight : 1.4,
-			size : 12,
-			penetrate : false,
-			bounce : true
-		};
-Q.weapon_ammo['PF-89']=5;
-
+			   'PF-89',
+			   'Pan','Pan',
+			   'Grenade','Grenade',
+			   'Smoke','Smoke'];
