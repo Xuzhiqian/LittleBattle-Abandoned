@@ -100,14 +100,13 @@ var Quisus = function () {
 	
 	Q.gameLoop = function (callback) {
 		Q.lastGameLoopFrame = new Date().getTime();
-		
+
 		Q.gameLoopCallbackWrapper = function (now) {
 			Q.loop = requestAnimationFrame(Q.gameLoopCallbackWrapper);
 			var dt = now - Q.lastGameLoopFrame;
 			callback.apply(Q, [dt / 1000]);
 			Q.lastGameLoopFrame = now;
 		};
-		
 		requestAnimationFrame(Q.gameLoopCallbackWrapper);
 	};
 	

@@ -89,7 +89,7 @@ io.on("connection", function (socket) {
 		var players=[];
 		for (var id in core.players)
 			players.push(core.players[id]);
-		socket.emit('init_surrounding',{terrain:core.terrain,boxes:core.boxes,bullets:core.bullets,players:players,weapons:core.weapons});
+		socket.emit('init_surrounding',JSON.stringify({terrain:core.terrain,boxes:core.boxes,bullets:core.bullets,players:players,weapons:core.weapons}));
 	});
 	
 	socket.on('message', function (msg) {

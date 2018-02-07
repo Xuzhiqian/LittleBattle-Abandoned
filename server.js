@@ -94,7 +94,7 @@ Q.server_core = Q.core.extend({
 		if (this.active==false) {
 			this.active=true;
 			this.genbox={cur:0,max:240};
-			this.genwpn={cur:0,max:72};
+			this.genwpn={cur:0,max:720};
 			this.weapons = [];
 			this.boxes = [];
 			this.bullets = [];
@@ -150,7 +150,7 @@ Q.server_core = Q.core.extend({
 
     	//地形参数
     	var main={p:0.465 , w:2, s:13 , d:25};
-    	var isle={p:0.398 , w:1, s:5  , d:20};
+    	var isle={p:0.397 , w:1, s:5  , d:20};
 
 		//地形随机化
 		this.main_terrain=[];
@@ -190,13 +190,14 @@ Q.server_core = Q.core.extend({
 		this.trigger('new_box', {box:new_box, index:index});
 	},
 	server_generate_weapon: function(_id,_pos,_ammo) {
+		if (_ammo!=undefined && _ammo<=0) return;
 		var pos = _pos || {
 				x: Math.floor(Math.random() * this.global_width),
 				y: Math.floor(Math.random() * this.global_height)
 			};
 		if (this.check_terrain(pos)==true) return;
 
-		var new_wpn = new Q.weapon(pos,_id || 'Pan');//weapons[Math.floor(Math.random()*weapons.length)]);
+		var new_wpn = new Q.weapon(pos,_id || weapons[Math.floor(Math.random()*weapons.length)]);
 		new_wpn.ammo = _ammo || Q.weapon_ammo[new_wpn.id];
 		var index = this.weapons.push(new_wpn) - 1;
 		this.trigger('new_weapon',{weapon:new_wpn, index:index});
@@ -206,6 +207,17 @@ Q.server_core = Q.core.extend({
 		var new_bullet = new Q.bullet(player);
 		var index = this.bullets.push(new_bullet) - 1;
 		this.trigger('new_bullet', {bullet: new_bullet, index: index});
+	},
+
+	server_new_childbullet: function (player,_pos,_prop) {
+		var org_prop = player.prop;
+		var org_pos = player.pos;
+		player.pos = _pos;
+		player.prop = _prop;
+		for (var i=0;i<_prop.bundle;i++)
+			this.server_new_bullet(player);
+		player.prop = org_prop;
+		player.pos = org_pos;
 	},
 	
 	server_delete_bullet: function (index) {
@@ -269,8 +281,17 @@ Q.server_core = Q.core.extend({
 				var b = this.bullets[index];
 				this.update_bullet_physics(b,dt);
 				this.server_bullet_check_hit(index);
-				if (b.destroyable===true) this.server_delete_bullet(index);
-				
+				if (b.destroyable===true) {
+					if (!(b.hittofade===false))
+						this.server_delete_bullet(index);
+					else
+						b.destroyable = false;
+				}
+				if (b.timeout===true){
+					if (b.delayedaction===true)
+						this.server_new_childbullet(this.players[b.owner_id],b.pos,Q.weapon_data[b.child]);
+					this.server_delete_bullet(index);
+				}
 			}
 	},
 
@@ -287,7 +308,7 @@ Q.server_core = Q.core.extend({
 		var p = this.players[pid];
 		if (p==undefined) return;
 
-		if (p.isArmed()===true && p.ammo>=0)
+		if (p.isArmed()===true && (p.ammo>0 || p.weapon==='Pan'))
 		{
 			if (p.weapon!=='Pan') this.server_generate_weapon(p.weapon,p.pos,p.ammo);
 			this.players[pid].unequip();
@@ -296,7 +317,7 @@ Q.server_core = Q.core.extend({
 		for (var index in this.weapons) {
 			var w = this.weapons[index];
 			if (w!=null)
-				if (dis(p.pos,w.pos)<p.size+30) {
+				if (dis(p.pos,w.pos)<p.size+35) {
 					this.players[pid].equip(w);
 					this.server_delete_weapon(index);
 					this.trigger('player_alert',{id:pid,type:'reward'});
@@ -311,7 +332,7 @@ Q.server_core = Q.core.extend({
 			if (p.weapon==='Pan') {
 				
 				p.reflect = true;
-				setTimeout(()=>{p.reflect=false},900);
+				setTimeout(()=>{p.reflect=false},750);
 				for (var id in this.players) {
 					var q = this.players[id];
 					if (id !== pid)
@@ -371,15 +392,15 @@ Q.server_core = Q.core.extend({
 		for (var index in this.boxes) {
 			var b = this.boxes[index];
 			if (dis(bullet.pos, b.pos) < bullet.size + b.size) {
-				this.server_cause_damage_to_box(bullet.owner_id,b,bullet.damage);
+				this.server_cause_damage_to_box(bullet.owner_id,index,bullet.damage);
 				bullet.destroyable = true;
-				this.trigger('box_underattack',{index:index,cur:b.health.cur});
 				break;
 			}
 		}
 	},
 
 	server_cause_damage_to_player: function (oid,pid,dmg) {
+		if (dmg===0) return;
 		var p = this.players[pid];
 		p.invisible = false;
 		p.health.cur += Math.min(p.shield-dmg,0);
@@ -392,12 +413,15 @@ Q.server_core = Q.core.extend({
 			this.trigger('player_alert',{id:oid,type:'attack'});
 	},
 
-	server_cause_damage_to_box: function (oid,box,dmg) {
-		box.health.cur -= dmg;
-		if (box.health.cur <= 0) {
-			this.server_player_reward(oid,box);
-			box.destroyable = true;
+	server_cause_damage_to_box: function (oid,bindex,dmg) {
+		if (dmg<=0) return;
+		var b = this.boxes[bindex];
+		b.health.cur -= dmg;
+		if (b.health.cur <= 0) {
+			this.server_player_reward(oid,b);
+			b.destroyable = true;
 		}
+		this.trigger('box_underattack',{index:bindex,cur:b.health.cur});
 	},
 
 	server_player_reward: function(pid, box) {
@@ -406,7 +430,7 @@ Q.server_core = Q.core.extend({
 
 		p.score+=box.health.max/10;
 
-		var isrd = this.lucks[pid] || 0.3;
+		var isrd = this.lucks[pid] || 0.5;
 		if (Math.random()>isrd) return;
 
 		var c = Math.floor(rewards.length*Math.random());
@@ -432,9 +456,9 @@ Q.server_core = Q.core.extend({
 
 			case 'lucky':
 				if (!this.lucks[pid])
-					this.lucks[pid] = 0.35;
+					this.lucks[pid] = 0.55;
 				else
-					this.lucks[pid] = Math.min(this.lucks[pid]+0.05,0.5);
+					this.lucks[pid] = Math.min(this.lucks[pid]+0.05,0.7);
 				break;
 
 			case 'invisible':
@@ -443,13 +467,13 @@ Q.server_core = Q.core.extend({
 				break;
 
 			case 'shield':
-				p.shield += 30;
-				setTimeout((function(){p.shield=Math.max(p.shield-30,0);}).bind(this),30000);
+				p.shield += 60;
+				setTimeout((function(){p.shield=Math.max(p.shield-60,0);}).bind(this),30000);
 				break;
 
 			case 'radar':
 				p.radar = true;
-				setTimeout((function(){p.radar=false;}).bind(this),10000);
+				setTimeout((function(){p.radar=false;}).bind(this),30000);
 				break;
 		}
 		this.trigger('player_reward',{id:pid,reward:rewards[c]});
@@ -531,5 +555,4 @@ var weapons = ['UMP9','UMP9',
 			   'Dominator-77',
 			   'PF-89',
 			   'Pan','Pan',
-			   'Grenade','Grenade',
-			   'Smoke','Smoke'];
+			   'Grenade','Grenade'];

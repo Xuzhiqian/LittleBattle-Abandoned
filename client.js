@@ -148,10 +148,12 @@ Q.client_core = Q.core.extend({
 		this.audio['weapon']=[];
 		for (var id in Q.weapon_data) {
 			var au = document.getElementById('audio_'+id);
-			au.volume = 0.6;
-			if (au.duration > Q.weapon_data[id].reload)
-				au.playbackRate = au.duration / Q.weapon_data[id].reload;
-			this.audio['weapon'][id]=au;
+			if (au!=undefined){
+				au.volume = 0.6;
+				if (au.duration > Q.weapon_data[id].reload)
+					au.playbackRate = au.duration / Q.weapon_data[id].reload;
+				this.audio['weapon'][id]=au;
+			}
 		}
 
 		//绘制Loading界面
@@ -292,9 +294,9 @@ Q.client_core = Q.core.extend({
 				case'invisible':
 					msg = "Stalker's Cloak : Invisible for 30s"; break;
 				case 'shield':
-					msg = 'Fearless Shield : Gain 30 armor for 30s'; break;
+					msg = 'Fearless Shield : Gain 60 armor for 30s'; break;
 				case 'radar':
-					msg = 'Mabi Ring : Track other players for 10s'; break;
+					msg = 'Mabi Ring : Track other players for 30s'; break;
 			}
 			var index = this.animsg_list.push({text:msg,alpha:0,displayed:false}) -1;
 			this.client_add_animation('system','message',this.animsg_list[index]);
@@ -303,6 +305,7 @@ Q.client_core = Q.core.extend({
 	},
 
 	client_init_sur: function (sur) {
+		sur = JSON.parse(sur);
 		this.terrain = sur.terrain;
 		this.state.bullets = sur.bullets;
 		this.state.boxes = sur.boxes;
@@ -440,7 +443,7 @@ Q.client_core = Q.core.extend({
 			if (!!this.state.bullets[index]) {
 				var b = this.state.bullets[index];
 				this.update_bullet_physics(b,dt);
-				if (b.destroyable==true)
+				if (b.destroyable===true || b.timeout===true)
 					this.client_deletebullet(index);
 			}
 	},
@@ -477,7 +480,7 @@ Q.client_core = Q.core.extend({
 			this.can_turn = false;
 			setTimeout((()=>{this.can_turn=true}).bind(this),500);
 		}
-		if ((this.is_mouse_down_hold || this.id==='auto') && this.can_atk) {
+		if (this.is_mouse_down_hold && this.can_atk) {
 			km = km + 'j';
 			this.can_atk = false;
 			setTimeout((()=>{this.can_atk = true}).bind(this), this.me.prop.reload * 1000);
@@ -513,8 +516,7 @@ Q.client_core = Q.core.extend({
 	},
 
 	client_update: function (dt) {
-
-
+			if (dt<0) dt=0.016689;
 			var msg = this.client_capture_input(dt);
 			this.client_predict(msg, dt);
 

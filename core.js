@@ -97,6 +97,12 @@ Q.bullet = function (p) {
 	this.bounce = p.prop.bounce;
 	this.damage = p.prop.damage;
 	this.penetrate = p.prop.penetrate;
+	if (p.prop.hittofade!=undefined)
+		this.hittofade = p.prop.hittofade;
+	if (p.prop.delayedaction!=undefined) {
+		this.delayedaction = p.prop.delayedaction;
+		this.child = p.prop.child || 'Grenade_child';
+	}
 
 	//弹道偏移
 	var b = p.prop.bias;
@@ -234,7 +240,7 @@ Q.core = Q.Evented.extend({
 		}
 
 		b.life.cur += dt;
-		if (b.life.cur>b.life.max) b.destroyable=true;
+		if (b.life.cur>b.life.max) b.timeout=true;
 
 	},
 
@@ -560,12 +566,13 @@ Q.weapon_data['PF-89']={
 			reload : 3,
 			bias : 0.05,
 			life : 60,
-			damage : 120,
+			damage : 2,
 			recoil : 50,
 			sight : 1.4,
 			size : 12,
 			penetrate : false,
-			bounce : true
+			bounce : true,
+			hittofade : false
 		};
 Q.weapon_ammo['PF-89']=5;
 
@@ -577,6 +584,33 @@ Q.weapon_data['Pan']={
 		};
 Q.weapon_ammo['Pan']=0;
 
+Q.weapon_data['Grenade']={
+			reload : 2.5,
+			speed : 250,
+			bias : 0,
+			life : 3,
+			damage : 0,
+			recoil : 0,
+			sight : 1,
+			size : 1,
+			penetrate : false,
+			bounce : true,
+			delayedaction : true,
+			hittofade : false,
+			child : 'Grenade_child'
+		};
+Q.weapon_ammo['Grenade']=3;
+
+Q.weapon_data['Grenade_child']={
+			speed : 400,
+			bias : 2,
+			life : 5,
+			damage : 20,
+			size : 5,
+			bundle : 15,
+			penetrate : false,
+			bounce : true
+		};
 
 
 if ('undefined' != typeof global)
