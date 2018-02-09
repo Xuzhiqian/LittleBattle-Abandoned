@@ -274,7 +274,7 @@ Q.server_core = Q.core.extend({
 				this.inputs[id] = [];
 				
 			}
-			if (this.players[id].prop.seek===true) {
+			if (this.players[id]!=undefined && this.players[id].prop.seek===true) {
 				for (var _id in this.players)
 					if (_id!==id) {
 						this.players[id].prop.target = _id;
@@ -300,7 +300,7 @@ Q.server_core = Q.core.extend({
 						b.destroyable = false;
 				}
 				if (b.timeout===true){
-					if (b.delayedaction===true)
+					if (b.delayedaction===true && this.players[b.owner_id]!=undefined)
 						this.server_new_childbullet(this.players[b.owner_id],b.pos,Q.weapon_data[b.child]);
 					this.server_delete_bullet(index);
 				}

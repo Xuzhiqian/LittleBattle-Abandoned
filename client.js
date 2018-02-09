@@ -438,18 +438,6 @@ Q.client_core = Q.core.extend({
 			this.me.pos.y - (this.global_height - map_height));
 	},
 
-	client_update_bullets: function(dt) {
-		for (var index in this.state.bullets)
-			if (!!this.state.bullets[index]) {
-				var b = this.state.bullets[index];
-				this.update_bullet_physics(b,dt);
-				if (b.seek===true && this.state.players[b.owner_id]!=undefined)
-					this.bullet_seek(b,this.state.players[this.state.players[b.owner_id].prop.target]);
-				if (b.destroyable===true || b.timeout===true)
-					this.client_deletebullet(index);
-			}
-	},
-
 	client_capture_input: function(dt) {
 		var msg = {
 			input: {kb: ''},
@@ -515,6 +503,19 @@ Q.client_core = Q.core.extend({
 		this.buffer[this.seq].input = msg.input;
 		$.extend(true, this.buffer[this.seq].player, me);	//深拷贝
 		this.seq = (this.seq + 1) % this.buffer_maxlength;		//环状buffer
+	},
+
+	client_update_bullets: function(dt) {
+		for (var index in this.state.bullets)
+			if (!!this.state.bullets[index]) {
+				var b = this.state.bullets[index];
+				this.update_bullet_physics(b,dt);
+				if (b.seek===true && this.state.players[b.owner_id]!=undefined &&
+					this.state.players[b.owner_id].prop.target!=undefined)
+					this.bullet_seek(b,this.state.players[this.state.players[b.owner_id].prop.target]);
+				if (b.destroyable===true || b.timeout===true)
+					this.client_deletebullet(index);
+			}
 	},
 
 	client_update: function (dt) {
