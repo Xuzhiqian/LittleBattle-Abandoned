@@ -141,10 +141,10 @@ Q.client_core = Q.core.extend({
 				audio[type].push(au);
 			}
 		}
-		loadAudio(this.audio,'reward',9);
-		loadAudio(this.audio,'kill',6);
-		loadAudio(this.audio,'attack',4);
-		loadAudio(this.audio,'underattack',3);
+		loadAudio(this.audio,'reward',11);
+		loadAudio(this.audio,'kill',9);
+		loadAudio(this.audio,'attack',6);
+		loadAudio(this.audio,'underattack',4);
 		this.audio['weapon']=[];
 		for (var id in Q.weapon_data) {
 			var au = document.getElementById('audio_'+id);
