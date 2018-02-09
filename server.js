@@ -354,7 +354,7 @@ Q.server_core = Q.core.extend({
 				for (var index in this.boxes) {
 					var b = this.boxes[index];
 					if (dis(p.pos,b.pos)<5*p.size) {
-						this.server_cause_damage_to_box(pid,b,p.prop.damage);
+						this.server_cause_damage_to_box(pid,index,p.prop.damage);
 						this.trigger('box_underattack',{index:index,cur:b.health.cur});
 					}
 				}

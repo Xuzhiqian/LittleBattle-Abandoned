@@ -149,7 +149,7 @@ Q.client_core = Q.core.extend({
 		for (var id in Q.weapon_data) {
 			var au = document.getElementById('audio_'+id);
 			if (au!=undefined){
-				au.volume = 0.6;
+				au.volume = 0.5;
 				if (au.duration > Q.weapon_data[id].reload)
 					au.playbackRate = au.duration / Q.weapon_data[id].reload;
 				this.audio['weapon'][id]=au;
