@@ -12,6 +12,16 @@ var v_a=function (a, b) {
 	},
 	v_n=function (a, b) {
 		return {x: a.x * b, y: a.y * b}
+	},
+	v_normal=function (a) {
+		var s = Math.sqrt(power2(a.x)+power2(a.y));
+		return {x:a.x/s,y:a.y/s};
+	}
+	power2 = function (a) {
+		return a * a;
+	},
+	dis = function (a, b) {
+		return Math.sqrt(power2(a.x - b.x) + power2(a.y - b.y));
 	};
 Q.fix = function(x) {
 	return parseFloat(x.toFixed(6));
@@ -59,7 +69,6 @@ Q.game_player = function(alias) {
 	this.size = player_size;
 	this.prop=prop_org;
 
-	this.score = 0;
 	this.alpha = 1;
 	this.invisible = false;
 	this.radar = false;
@@ -103,6 +112,8 @@ Q.bullet = function (p) {
 		this.delayedaction = p.prop.delayedaction;
 		this.child = p.prop.child || 'Grenade_child';
 	}
+	if (p.prop.seek != undefined)
+		this.seek = p.prop.seek;
 
 	//弹道偏移
 	var b = p.prop.bias;
@@ -112,12 +123,13 @@ Q.bullet = function (p) {
 
 Q.box = function (pos) {
 	this.pos = {x:pos.x, y:pos.y};
-	var maxhp = Math.floor(Math.random()*8+2)*10;		//血量随机
+	this.premium = Math.random()<0.2?true:false;
+	var maxhp = Math.floor(Math.random()*8+2)*(this.premium===true?20:10);		//血量随机
 	this.health = {cur:maxhp, max:maxhp};
-	this.life = {cur:0, max:80};
-	this.size = 12;
 	this.destroyable = false;
 	this.alpha = 1;
+	this.size = this.premium===true?18:12;
+	this.life = {cur:0,max:this.premium===true?300:80};
 };
 
 Q.box.prototype.update = function(dt) {
@@ -244,6 +256,14 @@ Q.core = Q.Evented.extend({
 
 	},
 
+	bullet_seek : function(bullet,target) {
+		if (target==undefined) return false;
+		var d = dis(bullet.pos,target.pos);
+		var b= {x:(target.pos.x-bullet.pos.x)/d/8,y:(target.pos.y-bullet.pos.y)/d/8};
+		bullet.dir=v_normal(v_a(b,bullet.dir));
+		return true;
+	},
+
 	process_inputs: function (p, inputs, dt) {
 
 		for (var i = 0; i < inputs.kb.length; i++) {
@@ -271,7 +291,7 @@ Q.core = Q.Evented.extend({
 
 	compressInput : function(msg) {
 		var c = '';
-		if (msg.input.kb.indexOf('j'))
+		if (msg.input.kb.indexOf('j')>=0)
 			c = c +msg.seq+','+msg.input.kb+','+msg.input.ms;
 		else
 			c = c+ msg.seq+','+msg.input.kb+',';
@@ -304,6 +324,7 @@ Q.core = Q.Evented.extend({
 
 Q.weapon_data = [];
 Q.weapon_ammo = [];
+Q.child_bullet = ['Groza','Micro_Uzi','Kar-98K','PF89','MK14',];
 
 //冲锋枪
 Q.weapon_data['UMP9']={
@@ -462,12 +483,13 @@ Q.weapon_data['AWM']={
 			reload : 2.5,
 			bias : 0.01,
 			life : 13,
-			damage : 100,
+			damage : 80,
 			recoil : 5,
 			sight : 1.2,
 			size : 2.5,
 			penetrate : true,
-			bounce : false
+			bounce : false,
+			seek : true
 		};
 Q.weapon_ammo['AWM']=10;
 
@@ -481,8 +503,7 @@ Q.weapon_data['MK14']={
 			sight : 1.1,
 			size : 3,
 			penetrate : false,
-			bounce : false,
-			bundle : 2
+			bounce : false
 		};
 Q.weapon_ammo['MK14']=15;
 
@@ -553,12 +574,12 @@ Q.weapon_data['Dominator-77']={
 			life : 15,
 			damage : 10,
 			recoil : 0,
-			sight : 1,
-			size : 6,
+			sight : 1.5,
+			size : 5,
 			penetrate : true,
 			bounce : false
 		};
-Q.weapon_ammo['Dominator-77']=80;
+Q.weapon_ammo['Dominator-77']=100;
 
 //火箭炮
 Q.weapon_data['PF-89']={
@@ -607,11 +628,41 @@ Q.weapon_data['Grenade_child']={
 			life : 5,
 			damage : 20,
 			size : 5,
-			bundle : 15,
 			penetrate : false,
+			bundle : 10,
 			bounce : true
 		};
+Q.weapon_data['DeathGrenade']={
+			reload : 2.5,
+			speed : 250,
+			bias : 0,
+			life : 3,
+			damage : 0,
+			recoil : 0,
+			sight : 1.2,
+			size : 1,
+			penetrate : false,
+			bounce : true,
+			delayedaction : true,
+			hittofade : false,
+			child : 'Grenade'
+		};
+Q.weapon_ammo['DeathGrenade']=2;
 
+Q.weapon_data['Seeker']={
+			reload : 3,
+			speed : 400,
+			bias : 0,
+			life : 45,
+			damage : 50,
+			recoil : 40,
+			sight : 1.2,
+			size : 6,
+			penetrate : true,
+			bounce : false,
+			seek : true
+		};
+Q.weapon_ammo['Seeker']=5;
 
 if ('undefined' != typeof global)
 	module.exports = global.Q = Q;

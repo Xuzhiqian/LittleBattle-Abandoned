@@ -213,8 +213,10 @@ Q.server_core = Q.core.extend({
 		var org_prop = player.prop;
 		var org_pos = player.pos;
 		player.pos = _pos;
-		player.prop = _prop;
-		for (var i=0;i<_prop.bundle;i++)
+		player.prop = {}; extend(true,player.prop,_prop);
+		player.prop.bias = 2;
+		var bundle = (_prop.bundle!==undefined)?_prop.bundle:10;
+		for (var i=0;i<bundle;i++)
 			this.server_new_bullet(player);
 		player.prop = org_prop;
 		player.pos = org_pos;
@@ -272,6 +274,13 @@ Q.server_core = Q.core.extend({
 				this.inputs[id] = [];
 				
 			}
+			if (this.players[id].prop.seek===true) {
+				for (var _id in this.players)
+					if (_id!==id) {
+						this.players[id].prop.target = _id;
+						break;
+					}
+			}
 		}
 	},
 
@@ -281,6 +290,9 @@ Q.server_core = Q.core.extend({
 				var b = this.bullets[index];
 				this.update_bullet_physics(b,dt);
 				this.server_bullet_check_hit(index);
+				if (b.seek===true && this.players[b.owner_id]!=undefined)
+					this.bullet_seek(b,this.players[this.players[b.owner_id].prop.target]);
+
 				if (b.destroyable===true) {
 					if (!(b.hittofade===false))
 						this.server_delete_bullet(index);
@@ -316,7 +328,7 @@ Q.server_core = Q.core.extend({
 		}
 		for (var index in this.weapons) {
 			var w = this.weapons[index];
-			if (w!=null)
+			if (!!w)
 				if (dis(p.pos,w.pos)<p.size+35) {
 					this.players[pid].equip(w);
 					this.server_delete_weapon(index);
@@ -424,11 +436,18 @@ Q.server_core = Q.core.extend({
 		this.trigger('box_underattack',{index:bindex,cur:b.health.cur});
 	},
 
+	server_player_premium_reward: function(pid,box) {
+		var prewpn = premium[Math.floor(Math.random()*premium.length)];
+		this.server_generate_weapon(prewpn,box.pos);
+	},
+
 	server_player_reward: function(pid, box) {
 		if (!this.players[pid]) return;
+		if (box.premium===true) {
+			this.server_player_premium_reward(pid,box);
+			return;
+		}
 		var p = this.players[pid];
-
-		p.score+=box.health.max/10;
 
 		var isrd = this.lucks[pid] || 0.5;
 		if (Math.random()>isrd) return;
@@ -508,7 +527,7 @@ Q.server_core = Q.core.extend({
 		for (var index in state.players) {
 			var is_silence = true;
 			for (var prop in state.players[index])
-				if (prop!='id') {
+				if (prop!=='id') {
 					is_silence = false;
 					break;
 				}
@@ -540,19 +559,18 @@ var weapons = ['UMP9','UMP9',
 			   'Vector','Vector',
 			   'AKM','AKM',
 			   'Groza',
-			   'M16A4','M16A4','M16A4',
+			   'M16A4','M16A4',
 			   'Scar-L','Scar-L',
 			   'M416','M416',
-			   'Kar-98K','Kar-98K',
+			   'Kar-98K',
 			   'SKS','SKS',
 			   'M24',
-			   'AWM',
 			   'MK14','MK14',
 			   'M249','M249',
 			   'S1897','S1897',
-			   'S686','S686',
+			   'S686',
 			   'Minigun',
-			   'Dominator-77',
 			   'PF-89',
 			   'Pan','Pan',
 			   'Grenade','Grenade'];
+var premium = ['AWM','Dominator-77','DeathGrenade','Seeker'];

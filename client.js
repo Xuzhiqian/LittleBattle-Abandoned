@@ -4,7 +4,7 @@ var ratio = 2,
 
 	map_width_org = 800,
 	map_height_org = 600,
-	delta_degree=2 * 3.1415926 / 360 * 100,
+	delta_degree=2 * Math.PI / 360 * 100,
 
 	color_table = ['super', 'aqua', 'Aquamarine', 'Chartreuse', 'Coral', 'LightCyan', 'LightSlateBlue', 'RoyalBlue', 'Violet', 'VioletRed', 'Purple', 'orange'],
 	color_table_length = color_table.length;
@@ -443,6 +443,8 @@ Q.client_core = Q.core.extend({
 			if (!!this.state.bullets[index]) {
 				var b = this.state.bullets[index];
 				this.update_bullet_physics(b,dt);
+				if (b.seek===true && this.state.players[b.owner_id]!=undefined)
+					this.bullet_seek(b,this.state.players[this.state.players[b.owner_id].prop.target]);
 				if (b.destroyable===true || b.timeout===true)
 					this.client_deletebullet(index);
 			}
@@ -609,7 +611,7 @@ Q.client_core = Q.core.extend({
 		ctx.strokeRect(-r,-r,2*r,2*r);
 		
 		//填充
-		ctx.fillStyle = 'lightyellow';
+		ctx.fillStyle = box.premium?'lightblue':'lightyellow';
 		ctx.fillRect(-r,-r,2*r,2*r);
 
 		//绘制血槽
@@ -804,7 +806,7 @@ Q.client_core = Q.core.extend({
 			//绘制资源
 		ctx.fillStyle = 'lightyellow';
 		for (var id in this.state.boxes) 
-			if (this.state.boxes[id]) {
+			if (this.state.boxes[id] && !this.state.boxes[id].premium) {
 			var p = this.state.boxes[id].pos;
 			ctx.fillRect(s*p.x/this.block_width,s*p.y/this.block_height,4,4);
 		}
@@ -954,7 +956,7 @@ Q.client_core = Q.core.extend({
 			this.messages.newmsg(state.id.kid + ' terminates ' + state.id.pid);
 			this.player_count = state.count;
 			delete this.state.players[state.id.pid];
-			if (state.id.kid === this.id) {		//己方确认击杀
+			if (state.id.kid === this.id) {
 				this.kills += 1;
 				this.client_playaudio('kill');
 			}
