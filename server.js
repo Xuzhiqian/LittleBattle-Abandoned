@@ -457,7 +457,7 @@ Q.server_core = Q.core.extend({
 				return;
 			}
 
-			if (p.ammo>1)
+			if (p.ammo>0)
 				this.players[pid].ammo-=1;
 			else 
 				this.players[pid].unequip();
