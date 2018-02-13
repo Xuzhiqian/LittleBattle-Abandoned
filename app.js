@@ -64,8 +64,13 @@ core.bind('player_reward',function(reward_info) {
 			sockets[reward_info.id].emit('player_reward',reward_info.reward);
 });
 
-core.bind('player_gameover', function (pkid) {
-	io.emit('player_gameover', {id: pkid, count: core.player_count});
+core.bind('player_gameover', function (state) {
+	io.emit('player_gameover', {id: state.pkid, count: core.player_count, final:state.final});
+});
+
+core.bind('player_win', function (winid) {
+	if (sockets[winid]!=null)
+		sockets[winid].emit('player_win');
 });
 
 io.on("connection", function (socket) {

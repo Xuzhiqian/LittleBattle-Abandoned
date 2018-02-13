@@ -5,7 +5,7 @@ if ('undefined' != typeof global) {
 var Q = Quisus();
 
 var global_width = 2400,
-	global_height = 1800;
+	global_height = 2400;
 
 var v_a=function (a, b) {
 		return {x: a.x + b.x, y: a.y + b.y}
@@ -479,7 +479,7 @@ Q.weapon_data['M24']={
 Q.weapon_ammo['M24']=5;
 
 Q.weapon_data['AWM']={
-			speed : 580,
+			speed : 600,
 			reload : 2.5,
 			bias : 0.01,
 			life : 13,
@@ -488,8 +488,7 @@ Q.weapon_data['AWM']={
 			sight : 1.2,
 			size : 2.5,
 			penetrate : true,
-			bounce : false,
-			seek : true
+			bounce : false
 		};
 Q.weapon_ammo['AWM']=10;
 
@@ -651,14 +650,14 @@ Q.weapon_ammo['DeathGrenade']=2;
 
 Q.weapon_data['Seeker']={
 			reload : 3,
-			speed : 400,
+			speed : 380,
 			bias : 0,
 			life : 45,
 			damage : 50,
 			recoil : 40,
 			sight : 1.2,
 			size : 6,
-			penetrate : true,
+			penetrate : false,
 			bounce : false,
 			seek : true
 		};

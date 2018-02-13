@@ -13,6 +13,11 @@ var isEmpty = function(a) {
 	return true;
 };
 
+var lerp = function(a,b,k) {
+	if (k>1) return b;
+	return a+(b-a)*k;
+}
+
 var diff = function (x, y) {
 
 	var d = {};
@@ -68,6 +73,7 @@ Q.server_core = Q.core.extend({
 		this.player_count = 0;
 		this.players = [];
 		this.memory = '{}';
+		this.memory_blue = '{}';
 		this.lucks = [];
 		this.bullets = [];
 		this.boxes = [];
@@ -77,6 +83,7 @@ Q.server_core = Q.core.extend({
 		this.inputs = [];
 		this.seqs = [];
 		this.active = false;
+		this.periods = 7;
 	},
 	
 	server_initialize: function () {
@@ -94,21 +101,108 @@ Q.server_core = Q.core.extend({
 		if (this.active==false) {
 			this.active=true;
 			this.genbox={cur:0,max:240};
+
+
 			this.genwpn={cur:0,max:720};
 			this.weapons = [];
 			this.boxes = [];
 			this.bullets = [];
 			this.server_generate_terrain();
+			this.server_generate_blue();
 		}
 
 		//防止出生地落在地形上
-		while (this.check_terrain(p.pos)) {
-			p.pos = {
-				x: Math.floor(Math.random() * this.global_width),
-				y: Math.floor(Math.random() * this.global_height)
-			};
-		}
+		while (this.check_terrain(p.pos)===true)
+			p.pos = this.server_random_pos();
 
+	},
+
+	server_random_pos : function() {
+		return {
+			x: Math.floor(Math.random() * this.global_width),
+			y: Math.floor(Math.random() * this.global_height)
+		};
+	},
+
+	server_generate_blue : function() {
+		this.blue={
+			ctrs:[],
+		};
+		do {
+			last = this.server_random_pos();
+		}while (this.check_terrain(last)===true);
+
+		var r0 = Math.floor(dis({x:this.global_width,y:this.global_height},{x:0,y:0}))/3;
+		for (var i=this.periods;i>=1;i--) {
+			var r = Math.floor(r0/(Math.exp((i-1)*Math.log(1.8))));
+			var d = Math.random()*r;
+			var a = Math.random()*2*Math.PI;
+			this.blue.ctrs.unshift({
+				x:Math.min(Math.max(r,last.x+d*Math.cos(a)),this.global_width-r),
+				y:Math.min(Math.max(r,last.y+d*Math.sin(a)),this.global_height-r),
+				r:r
+			});
+			last = this.blue.ctrs[0];
+
+		}
+		this.blue.ctrs.unshift({
+			x:this.global_width/2,
+			y:this.global_height/2,
+			r:this.global_width*2
+		});
+
+		this.blue.ctr = {
+			x:this.blue.ctrs[0].x,
+			y:this.blue.ctrs[0].y,
+			r:this.blue.ctrs[0].r
+		};
+		this.blue.state = 'hold';
+		this.blue.timer = 0;
+	},
+
+	server_update_blue : function(dt) {	//TODO
+		if (this.blue.state === 'hold') {
+			this.blue.timer += dt;
+			if (this.blue.timer > 60) {
+				if (this.blue.ctrs.length <= 1)
+					this.blue.state = 'end';
+				else
+					this.blue.state = 'narrow';
+				this.blue.timer = 0;
+			}
+		}
+		else if (this.blue.state === 'narrow') {
+			this.blue.timer += dt;
+			var k = this.blue.timer / 30;
+			this.blue.ctr = {
+				x:lerp(this.blue.ctrs[0].x,this.blue.ctrs[1].x,k),
+				y:lerp(this.blue.ctrs[0].y,this.blue.ctrs[1].y,k),
+				r:lerp(this.blue.ctrs[0].r,this.blue.ctrs[1].r,k)
+			};
+			if (k > 1) {
+				k = 1;
+				this.blue.ctrs.shift();
+				this.blue.state = 'hold';
+				this.blue.timer = 0;
+			}
+		}
+		else if (this.blue.state === 'end') {
+				var h = -1;
+				var winner ='';
+				for (var id in this.players)
+					if (this.players[id].health.cur>h) {
+						h = this.players[id].health.cur;
+						winner = id;
+					}
+				if (winner === '') return;
+				for (var id in this.players)
+					if (id!==winner) {
+						this.trigger('player_gameover',{pkid:{pid:id,kid:winner},final:true});
+						this.server_remove_player(id);
+					}
+				this.trigger('player_win',winner);
+				this.server_remove_player(winner);
+		}
 	},
 	
 	//经过精心调参后比较美观的随机地形生成器，由主地形和分支地形构成，
@@ -179,10 +273,7 @@ Q.server_core = Q.core.extend({
 	},
 
 	server_generate_box: function() {
-		var pos = {
-				x: Math.floor(Math.random() * this.global_width),
-				y: Math.floor(Math.random() * this.global_height)
-			};
+		var pos = this.server_random_pos();
 		if (this.check_terrain(pos)==true) return;
 			
 		var new_box = new Q.box(pos);
@@ -191,10 +282,7 @@ Q.server_core = Q.core.extend({
 	},
 	server_generate_weapon: function(_id,_pos,_ammo) {
 		if (_ammo!=undefined && _ammo<=0) return;
-		var pos = _pos || {
-				x: Math.floor(Math.random() * this.global_width),
-				y: Math.floor(Math.random() * this.global_height)
-			};
+		var pos = _pos || this.server_random_pos();
 		if (this.check_terrain(pos)==true) return;
 
 		var new_wpn = new Q.weapon(pos,_id || weapons[Math.floor(Math.random()*weapons.length)]);
@@ -253,6 +341,7 @@ Q.server_core = Q.core.extend({
 			this.genwpn.max+=10;
 		}
 
+		this.server_update_blue(dt);
 		this.server_update_players(dt);
 		this.server_update_bullets(dt);
 		this.server_update_boxes(dt);
@@ -260,7 +349,9 @@ Q.server_core = Q.core.extend({
 	},
 	
 	server_update_players: function(dt) {
-		for (var id in this.players) {
+		for (var id in this.players) 
+			if (this.players[id]!=null) {
+
 			if (this.inputs[id] != undefined) {
 				for (var unit_index in this.inputs[id]) {
 					var msg = this.inputs[id][unit_index];
@@ -274,13 +365,18 @@ Q.server_core = Q.core.extend({
 				this.inputs[id] = [];
 				
 			}
+
 			if (this.players[id]!=undefined && this.players[id].prop.seek===true) {
+				this.players[id].prop.target = '#';
 				for (var _id in this.players)
 					if (_id!==id) {
 						this.players[id].prop.target = _id;
 						break;
 					}
 			}
+
+			if (dis(this.players[id].pos,this.blue.ctr)>this.blue.ctr.r)
+				this.server_cause_damage_to_player('#blue',id,1/30);
 		}
 	},
 
@@ -290,7 +386,7 @@ Q.server_core = Q.core.extend({
 				var b = this.bullets[index];
 				this.update_bullet_physics(b,dt);
 				this.server_bullet_check_hit(index);
-				if (b.seek===true && this.players[b.owner_id]!=undefined)
+				if (b.seek===true && this.players[b.owner_id]!=undefined && this.players[b.owner_id].prop.target!=undefined)
 					this.bullet_seek(b,this.players[this.players[b.owner_id].prop.target]);
 
 				if (b.destroyable===true) {
@@ -320,9 +416,9 @@ Q.server_core = Q.core.extend({
 		var p = this.players[pid];
 		if (p==undefined) return;
 
-		if (p.isArmed()===true && (p.ammo>0 || p.weapon==='Pan'))
+		if (p.isArmed()===true)
 		{
-			if (p.weapon!=='Pan') this.server_generate_weapon(p.weapon,p.pos,p.ammo);
+			this.server_generate_weapon(p.weapon,p.pos,p.ammo);
 			this.players[pid].unequip();
 			return;
 		}
@@ -344,7 +440,7 @@ Q.server_core = Q.core.extend({
 			if (p.weapon==='Pan') {
 				
 				p.reflect = true;
-				setTimeout(()=>{p.reflect=false},750);
+				setTimeout(()=>{p.reflect=false},850);
 				for (var id in this.players) {
 					var q = this.players[id];
 					if (id !== pid)
@@ -361,7 +457,7 @@ Q.server_core = Q.core.extend({
 				return;
 			}
 
-			if (p.ammo>0)
+			if (p.ammo>1)
 				this.players[pid].ammo-=1;
 			else 
 				this.players[pid].unequip();
@@ -387,6 +483,8 @@ Q.server_core = Q.core.extend({
 							var new_dir = 2*r+Math.PI - a;
 							bullet.dir = {x:Math.cos(new_dir),y:Math.sin(new_dir)};
 							bullet.owner_id = id;
+							if (this.players[id]!=undefined)
+								this.players[id].prop.seek = bullet.seek;
 							bullet.color = p.color;
 							this.trigger('new_bullet',{bullet:bullet,index:bindex});
 							continue;
@@ -419,10 +517,12 @@ Q.server_core = Q.core.extend({
 		p.shield = Math.max(p.shield-dmg,0);
 		if (p.health.cur <= 0) {
 			this.server_remove_player(pid);
-			this.trigger('player_gameover', {pid: pid, kid: oid});
+			this.trigger('player_gameover', {pkid:{pid: pid, kid: oid}});
 		}
-		else
-			this.trigger('player_alert',{id:oid,type:'attack'});
+		else {
+			if (oid!=='#blue')
+				this.trigger('player_alert',{id:oid,type:'attack'});
+		}
 	},
 
 	server_cause_damage_to_box: function (oid,bindex,dmg) {
@@ -506,7 +606,8 @@ Q.server_core = Q.core.extend({
 	server_snapshot: function () {
 		var state = {
 			players:{},
-			seqs: []
+			seqs: [],
+			blue:{}
 		};
 		var now=[];
 		var old = JSON.parse(this.memory);
@@ -534,6 +635,13 @@ Q.server_core = Q.core.extend({
 			if (is_silence)
 				delete state.players[index];
 		}
+
+		var new_blue = this.blue.ctr;
+		var old_blue = JSON.parse(this.memory_blue);
+		state.blue = diff(old_blue,new_blue);
+		if (isEmpty(state.blue)===true)
+			delete state.blue;
+		this.memory_blue = JSON.stringify(new_blue);
 
 		return state;
 	},

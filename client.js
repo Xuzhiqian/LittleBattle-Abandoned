@@ -60,6 +60,7 @@ Q.client_core = Q.core.extend({
 		this.state = {};
 		this.old_players= {};
 		this.last_players = {};
+		this.blue = {};
 
 		this.anim_list = [];
 		this.render_list = [];
@@ -171,6 +172,7 @@ Q.client_core = Q.core.extend({
 
 		//基本设置
 		this.id = this.game.socket.client_id;
+		this.blue={x:0,y:0,r:0};
 		this.state.bullets = [];
 		this.state.weapons = [];
 		this.state.boxes = [];
@@ -202,6 +204,7 @@ Q.client_core = Q.core.extend({
 		
 		this.game.socket.on('init_surrounding', this.client_init_sur.bind(this));
 		this.game.socket.on('player_gameover', this.client_gameover.bind(this));
+		this.game.socket.on('player_win', this.client_win.bind(this));
 		this.game.socket.on('player_alert',this.client_alert.bind(this));
 		this.game.socket.on('new_player', this.client_newplayerjoin.bind(this));
 		this.game.socket.on('player_disconnect', this.client_playerdisconnect.bind(this));
@@ -361,6 +364,9 @@ Q.client_core = Q.core.extend({
 	client_onserverupdate: function (state) {
 		state = JSON.parse(state);
 
+		if (state.blue!=undefined)
+			$.extend(true,this.blue,state.blue);
+
 		var authority_me;
 		for (var index in state.players) {
 			var id = state.players[index].id;
@@ -511,7 +517,8 @@ Q.client_core = Q.core.extend({
 				var b = this.state.bullets[index];
 				this.update_bullet_physics(b,dt);
 				if (b.seek===true && this.state.players[b.owner_id]!=undefined &&
-					this.state.players[b.owner_id].prop.target!=undefined)
+					this.state.players[b.owner_id].prop.target!=undefined &&
+					this.state.players[b.owner_id].prop.target!=='#')
 					this.bullet_seek(b,this.state.players[this.state.players[b.owner_id].prop.target]);
 				if (b.destroyable===true || b.timeout===true)
 					this.client_deletebullet(index);
@@ -745,9 +752,9 @@ Q.client_core = Q.core.extend({
 				ctx.fillText(this.messages.text[(i + this.messages.tail) % this.messages.length], map_width - 170, 60 + i * 20);
 			}
 		}
-		if (this.me.ammo>0) {
+		if (this.me.ammo>=0 && this.me.weapon!=='') {
 			ctx.font = '20px "Futura"';
-			ctx.fillText(this.me.ammo+'    '+this.me.weapon,map_width/2 - 50,map_height - 50);
+			ctx.fillText((this.me.ammo===0?'∞':this.me.ammo)+'     '+this.me.weapon,map_width/2 - 50,map_height - 50);
 		}
 
 		ctx.restore();
@@ -811,8 +818,31 @@ Q.client_core = Q.core.extend({
 			var p = this.state.boxes[id].pos;
 			ctx.fillRect(s*p.x/this.block_width,s*p.y/this.block_height,4,4);
 		}
+		if (this.blue.r<this.global_width/2) {
+			ctx.beginPath();
+			ctx.strokeStyle = 'lightblue';
+			ctx.lineWidth = 1;
+			ctx.arc(s*this.blue.x/this.block_width , s*this.blue.y/this.block_height, s*this.blue.r/this.block_width, 0, 2 * Math.PI);
+			ctx.stroke();
+		}
+
 		ctx.restore();
 
+	},
+
+	client_render_blue : function() {
+		var ctx = this.game.ctx;
+		ctx.save();
+
+		ctx.translate(this.blue.x - this.me.pos.x + this.mapX, this.blue.y - this.me.pos.y + this.mapY);
+
+		ctx.beginPath();
+		ctx.strokeStyle = 'lightblue';
+		ctx.lineWidth = 2;
+		ctx.arc(0, 0, this.blue.r, 0, 2 * Math.PI);
+		ctx.stroke();
+
+		ctx.restore();
 	},
 
 	client_render_reload: function(progress) {
@@ -947,14 +977,29 @@ Q.client_core = Q.core.extend({
 		}
 		if (this.minimap_open) this.client_render_minimap(s);
 		this.client_render_animsg();
+		this.client_render_blue();
 
 		this.game.ctx.scale(s,s);
 	},
 	
-	
+	client_quit : function () {
+		this.game.socket.disconnect();
+		Q.pauseGame();
+		this.game.map.removeEventListener('mousemove', this.get_mouse_pos);
+		this.game.map.removeEventListener('mousedown', this.mouse_click);
+		$("#login").removeClass("hidden-div");
+		$("#game").addClass("hidden-div");
+		init();
+	},
+
 	client_gameover: function (state) {
 		if (state.id.pid !== this.id) {
-			this.messages.newmsg(state.id.kid + ' terminates ' + state.id.pid);
+			if (state.final===true)
+				this.messages.newmsg(state.id.pid + 'is knocked out');
+			else if (state.id.kid==='#blue')
+				this.messages.newmsg(state.id.pid + ' died alone');
+			else
+				this.messages.newmsg(state.id.kid + ' terminates ' + state.id.pid);
 			this.player_count = state.count;
 			delete this.state.players[state.id.pid];
 			if (state.id.kid === this.id) {
@@ -963,14 +1008,18 @@ Q.client_core = Q.core.extend({
 			}
 		}
 		else {
-			this.game.socket.disconnect();
-			Q.pauseGame();
-			alert('You have been slained by ' + state.id.kid + '! Good luck next time!');
-			this.game.map.removeEventListener('mousemove', this.get_mouse_pos);
-			this.game.map.removeEventListener('mousedown', this.mouse_click);
-			$("#login").removeClass("hidden-div");
-			$("#game").addClass("hidden-div");
-			init();
+			if (state.final === true)
+				alert('You have been knocked out, good luck next time!');
+			else if (state.id.kid === '#blue')
+				alert('You died alone, be careful next time!');
+			else
+				alert('You have been slained by ' + state.id.kid + '! Good luck next time!');
+			this.client_quit();
 		}
+	},
+
+	client_win: function () {
+		alert('Winner winner, chicken dinner!');
+		this.client_quit();
 	}
 });
