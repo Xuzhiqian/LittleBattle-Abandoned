@@ -100,9 +100,8 @@ Q.server_core = Q.core.extend({
 
 		if (this.active==false) {
 			this.active=true;
+			this.final = false;
 			this.genbox={cur:0,max:240};
-
-
 			this.genwpn={cur:0,max:720};
 			this.weapons = [];
 			this.boxes = [];
@@ -163,6 +162,8 @@ Q.server_core = Q.core.extend({
 	server_update_blue : function(dt) {	//TODO
 		if (this.blue.state === 'hold') {
 			this.blue.timer += dt;
+			if (this.blue.ctrs.length <= 1)
+				this.final = true;
 			if (this.blue.timer > 60) {
 				if (this.blue.ctrs.length <= 1)
 					this.blue.state = 'end';

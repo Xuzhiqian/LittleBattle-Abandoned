@@ -76,6 +76,10 @@ core.bind('player_win', function (winid) {
 io.on("connection", function (socket) {
 	
 	socket.on('id_checkdup',function(id){
+		if (core.final===true) {
+			socket.emit('onfinal');
+			return;
+		}
 		if (core.names[id]==undefined)
 			core.names[id]=1;
 		else {

@@ -120,8 +120,7 @@
       Shoot down boxes to gain supply</br>
       Press F to pickup/drop weapon</br>
       Press M to close/open minimap</br>
-      Build your own skill tree</br>
-      If you are brother, come and do this!</br>
+      Build your own skill tree
     </i2>
 </div>
 </center>
@@ -421,7 +420,6 @@ var gradients = (function() {
 //////////////////////////////
 init();
 </script>
-<script>core = {};</script>
 <script src="core.js"></script>
 <script src="client.js"></script>
 <script>
@@ -448,7 +446,8 @@ init();
 			core.client_initialize(enviroment);
 		}).bind(this));
 
-		socket.on('verified',function(id){core.trigger('verified',id);});
+		socket.on('verified',(id)=>{core.trigger('verified',id);});
+    socket.on('onfinal',()=>{alert('Game is on final round now, please connect again later.')});
 	});
 </script>
 
