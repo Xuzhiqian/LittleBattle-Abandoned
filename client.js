@@ -995,7 +995,6 @@ Q.client_core = Q.core.extend({
 		this.game.map.removeEventListener('mousedown', this.mouse_click);
 		$("#login").removeClass("hidden-div");
 		$("#game").addClass("hidden-div");
-		init();
 	},
 
 	client_gameover: function (state) {
