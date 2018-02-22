@@ -313,6 +313,7 @@ Q.client_core = Q.core.extend({
 		this.state.bullets = sur.bullets;
 		this.state.boxes = sur.boxes;
 		this.state.weapons = sur.weapons;
+		this.blue = sur.blue;
 		for (var index in sur.players) {
 			var id = sur.players[index].id;
 			this.state.players[id]={};
@@ -364,16 +365,21 @@ Q.client_core = Q.core.extend({
 	client_onserverupdate: function (state) {
 		state = JSON.parse(state);
 
-		if (state.blue!=undefined)
-			$.extend(true,this.blue,state.blue);
+		$.extend(true,this.blue,state.blue);
 
 		var authority_me;
 		for (var index in state.players) {
 			var id = state.players[index].id;
 			if (id==undefined) continue;
 			if (id !== this.id) {
+				if (this.state.players[id]==undefined) {
+					this.state.players[id]={};
+					$.extend(true,this.state.players[id],state.players[index]);
+					continue;
+				}
 
 				var pos_org;
+				var health_org = this.state.players[id].health.cur;
 				if (!this.state.players[id]) {
 					this.state.players[id]={};
 					pos_org = {x:0,y:0};
@@ -386,7 +392,7 @@ Q.client_core = Q.core.extend({
 					this.render_list[id]={alpha:1,size:this.state.players[id].size};
 
 					//其他玩家受攻击时的闪烁动画
-					if (state.players[index].health && state.players[index].health.cur)
+					if (state.players[index].health && state.players[index].health.cur && health_org>state.players[index].health.cur+1)
 						this.client_add_animation('player','underatk',this.render_list[id]);
 					
 					//客户端插值动画
@@ -404,7 +410,7 @@ Q.client_core = Q.core.extend({
 			if (authority_me &&
 				authority_me.health && 
 				authority_me.health.cur &&
-				authority_me.health.cur < this.state.players[this,id].health.cur) {
+				authority_me.health.cur < this.state.players[this,id].health.cur - 1) {
 				this.render_list[this.id]={alpha:1,size:this.state.players[this.id].size};
 				this.client_add_animation('player','underatk',this.render_list[this.id]);
 				this.client_playaudio('underattack');
