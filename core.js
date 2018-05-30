@@ -1,11 +1,8 @@
-if ('undefined' != typeof global) {
-	var Quisus = require('./quisus.js');
-}
+
 
 var Q = Quisus();
 
-var global_width = 2400,
-	global_height = 2400;
+var global_width,global_height;
 
 var v_a=function (a, b) {
 		return {x: a.x + b.x, y: a.y + b.y}
@@ -22,23 +19,12 @@ var v_a=function (a, b) {
 	},
 	dis = function (a, b) {
 		return Math.sqrt(power2(a.x - b.x) + power2(a.y - b.y));
+	},
+	lerp = function(a,b,k) {
+		if (k>1) return b;
+		return a+(b-a)*k;
 	};
-Q.fix = function(x) {
-	return parseFloat(x.toFixed(6));
-};
 
-Q.isNumber = function (x) {
-		return (typeof x === 'number');
-};
-Q.isString = function (x) {
-		return (typeof x === 'string');
-};
-Q.isObject = function (x) {
-		return (typeof x === 'object');
-};
-Q.isBoolean = function (x) {
-		return (typeof x === 'boolean');
-}
 
 var player_size = 15;
 var bullet_size = 5;
@@ -50,107 +36,84 @@ var prop_org = {
 	damage : 10,
 	bounce : false,
 	recoil : 0,
-	sight : 1,
-	size : bullet_size,
 	penetrate : false
 };
 
-Q.game_player = function(alias) {
-	this.id = alias;
-	this.pos = {
-		x: Math.floor(Math.random() * global_width),
-		y: Math.floor(Math.random() * global_height)
-	};
-	this.health = {cur: 100, max: 100};
-	this.shield = 0;
-	this.speed = {x: {cur: 0, max: 120, acc: 180}, y: {cur: 0, max: 120, acc: 180}};
-	this.dir = 0;
-	this.color = 0;
-	this.size = player_size;
-	this.prop=prop_org;
-
-	this.alpha = 1;
-	this.invisible = false;
-	this.radar = false;
-	this.reflect = false;
-};
-
-Q.game_player.prototype.isArmed = function() {
-	return (typeof this.weapon === 'string' && this.weapon.length>0);
-};
-
-Q.game_player.prototype.equip = function(weapon) {
-		this.weapon = weapon.id;
-		this.ammo = weapon.ammo;
-		this.prop = Q.weapon_data[weapon.id];
-};
-
-Q.game_player.prototype.unequip = function() {
-	this.weapon = '';
-	this.ammo = 0;
-	this.prop = prop_org;
-}
-
-Q.bullet = function (p) {
-	//基础属性
-	this.pos = {x: p.pos.x, y: p.pos.y};
-	this.size = p.prop.size || bullet_size;
-	this.color = p.color;
-	this.owner_id = p.id;
-	this.destroyable = false;
-	this.alpha = 1;
-
-	//可增强属性
-	this.speed = p.prop.speed;
-	this.life = {cur: 0, max: p.prop.life};
-	this.bounce = p.prop.bounce;
-	this.damage = p.prop.damage;
-	this.penetrate = p.prop.penetrate;
-	if (p.prop.hittofade!=undefined)
-		this.hittofade = p.prop.hittofade;
-	if (p.prop.delayedaction!=undefined) {
-		this.delayedaction = p.prop.delayedaction;
-		this.child = p.prop.child || 'Grenade_child';
+Q.Player = Q.GameObject.extend({
+	init: function(prototype) {
+		this.id = alias;
+		this.pos = {
+			x: Math.floor(Math.random() * global_width),
+			y: Math.floor(Math.random() * global_height)
+		};
+		this.health = {cur: 100, max: 100};
+		this.speed = {x: {cur: 0, max: 120, acc: 180}, y: {cur: 0, max: 120, acc: 180}};
+		this.dir = 0;
+		this.color = 0;
+		this.prop = prop_org;
+		this.alpha = 1;
 	}
-	if (p.prop.seek != undefined)
-		this.seek = p.prop.seek;
+});
 
-	//弹道偏移
-	var b = p.prop.bias;
-	var start_dir = p.dir + Math.PI / 2 * (Math.random() * 2 * b - b);
-	this.dir = {x: Q.fix(Math.cos(start_dir)), y: Q.fix(Math.sin(start_dir))};
-};
+Q.bullet = Q.GameObject.extend({
+	init:function (p) {
+		//基础属性
+		this.pos = {x: p.pos.x, y: p.pos.y};
+		this.owner_id = p.id;
+		this.alpha = 1;
 
-Q.box = function (pos) {
-	this.pos = {x:pos.x, y:pos.y};
-	this.premium = Math.random()<0.2?true:false;
-	var maxhp = Math.floor(Math.random()*8+2)*(this.premium===true?20:10);		//血量随机
-	this.health = {cur:maxhp, max:maxhp};
-	this.destroyable = false;
-	this.alpha = 1;
-	this.size = this.premium===true?18:12;
-	this.life = {cur:0,max:this.premium===true?300:80};
-};
+		//可增强属性
+		this.speed = p.prop.speed;
+		this.life = {cur: 0, max: p.prop.life};
+		this.bounce = p.prop.bounce;
+		this.damage = p.prop.damage;
+		this.color = p.color;
+		this.penetrate = p.prop.penetrate;
+		if (p.prop.seek != undefined)
+			this.seek = p.prop.seek;
 
-Q.box.prototype.update = function(dt) {
-	this.life.cur += dt;
-	if (this.life.cur>this.life.max)
-		this.destroyable = true;
-};
+		//弹道偏移
+		var b = p.prop.bias;
+		var start_dir = p.dir + Math.PI / 2 * (Math.random() * 2 * b - b);
+		this.dir = {x: Q.fix(Math.cos(start_dir)), y: Q.fix(Math.sin(start_dir))};
+	},
 
-Q.weapon = function (pos,id) {
-	this.pos = {x:pos.x,y:pos.y};
-	this.id = id;
-};
+	seek: function(target) {
+		if (target==undefined) return false;
+		var d = dis(this.pos,target);
+		var b= {x:(target.x-bullet.pos.x)/d/8,y:(target.y-bullet.pos.y)/d/8};
+		this.dir=v_normal(v_a(b,this.dir));
+		return true;
+	},
+});
+
+Q.weapon = Q.GameObject.extend({
+	init : function (pos,id,ammo) {
+		this.pos = {x:pos.x,y:pos.y};
+		this.id = id;
+		this.ammo = ammo;
+	}
+});
 
 Q.core = Q.Evented.extend({
-	global_width:global_width,
-	global_height:global_height,
-
-	block_width:20,
-	block_height:20,
-
-	tickrate:60,		//客户端和服务器的通信间隔(ms)
+	init : function(enviroment,size,block_size) {
+		global_width = size.width;
+		global_height = size.height;
+		this.width = size.width;
+		this.height = size.height;
+		this.block_width = block_size.width;
+		this.block_height = block_size.height;
+		this.player_count = 0;
+		this.players = [];
+		this.bullets = [];
+		this.weapons = [];
+		this.terrain = [];
+		this.genwpn={cur:0,max:720};
+		this.generate_terrain();
+		this.renderer = new Q.renderer(enviroment,size,block_size,this.terrain);
+		this.running = false;
+		Q.gameLoop(this.update.bind(this));
+	},
 
 	move_u: function (p, dt) {
 		p.speed.y.cur = Math.max(p.speed.y.cur - dt * p.speed.y.acc, -p.speed.y.max);
@@ -212,19 +175,19 @@ Q.core = Q.Evented.extend({
 		//越界检测
 		if (p.pos.x < 0) p.pos.x = 0;
 		if (p.pos.y < 0) p.pos.y = 0;
-		if (p.pos.x > this.global_width) p.pos.x = this.global_width;
-		if (p.pos.y > this.global_height) p.pos.y = this.global_height;
+		if (p.pos.x > this.width) p.pos.x = this.width;
+		if (p.pos.y > this.height) p.pos.y = this.height;
 	},
 	
 	update_bullet_physics:function (b,dt) {
 		b.pos = v_a(b.pos, v_n(b.dir, dt * b.speed));
 
-		if (b.pos.x < 0 || b.pos.x > this.global_width)
+		if (b.pos.x < 0 || b.pos.x > this.width)
 			if (b.bounce==true)
 				b.dir.x = -b.dir.x;
 			else
 				b.destroyable = true;
-		if (b.pos.y < 0 || b.pos.y > this.global_height)
+		if (b.pos.y < 0 || b.pos.y > this.height)
 			if (b.bounce==true)
 				b.dir.y = -b.dir.y;
 			else
@@ -252,18 +215,10 @@ Q.core = Q.Evented.extend({
 		}
 
 		b.life.cur += dt;
-		if (b.life.cur>b.life.max) b.timeout=true;
-
 	},
 
-	bullet_seek : function(bullet,target) {
-		if (target==undefined) return false;
-		var d = dis(bullet.pos,target.pos);
-		var b= {x:(target.pos.x-bullet.pos.x)/d/8,y:(target.pos.y-bullet.pos.y)/d/8};
-		bullet.dir=v_normal(v_a(b,bullet.dir));
-		return true;
-	},
-
+	
+	/*
 	process_inputs: function (p, inputs, dt) {
 
 		for (var i = 0; i < inputs.kb.length; i++) {
@@ -287,30 +242,7 @@ Q.core = Q.Evented.extend({
 		
 		if (inputs.ms!=undefined)
 			p.dir = inputs.ms;
-	},
-
-	compressInput : function(msg) {
-		var c = '';
-		if (msg.input.kb.indexOf('j')>=0)
-			c = c +msg.seq+','+msg.input.kb+','+msg.input.ms;
-		else
-			c = c+ msg.seq+','+msg.input.kb+',';
-		return c;
-		console.log(c);
-	},
-
-	decompressInput : function(c) {
-		var para = c.split(',');
-		var msg = {
-			seq:parseInt(para[0]),
-			input:{
-				kb:para[1]
-			}
-		};
-		if (para[2]!=='')
-			msg.input.ms = parseFloat(para[2]);
-		return msg;
-	},
+	},*/
 
 	check_terrain: function(pos) {
 		var bx = Math.floor(pos.x/this.block_width);
@@ -319,26 +251,269 @@ Q.core = Q.Evented.extend({
 			if (this.terrain[bx][by]!==undefined)
 				return this.terrain[bx][by]===1;
 		return true;
-	}
+	},
+	
+	add_player: function (pid) {
+		this.players[pid] = new Q.game_player(pid);
+		p = this.players[pid];
+		p.color = status.color;
+		this.player_count++;
+
+		//防止出生地落在地形上
+		while (this.check_terrain(p.pos)===true)
+			p.pos = this.random_pos();
+	},
+
+	random_pos : function() {
+		return {
+			x: Math.floor(Math.random() * this.width),
+			y: Math.floor(Math.random() * this.height)
+		};
+	},
+	
+	//随机地形生成器，由主地形和分支地形构成，
+	//主地形生成较大的类陆地形，分支地形生成零散的岛屿地形，最终两者合并。
+	generate_terrain: function() {
+		var w = this.width / this.block_width;
+		var h = this.height / this.block_height;
+
+		this.terrain = [];
+
+      	//地形周围单元计数
+      	var count=function(t,x,y,f) {
+      		var c=0;
+      		for (var i=x-f;i<=x+f;i++)
+        		for (var j=y-f;j<=y+f;j++)
+          			if (t[i]!=undefined)
+            			if (t[i][j]!=undefined)
+              				if (t[i][j]==1)	c++;
+      		return c;
+    	};
+
+    	//地形迭代
+    	var evol = function(t,opt) {
+    		for (var dd=0;dd<opt.d;dd++) {
+    			var _terrain=[];
+    			for (var i=-1;i<=w+1;i++) {
+      				_terrain[i]=[];
+      				for (var j=-1;j<=h+1;j++) {
+        				if (count(t,i,j,opt.w)>=opt.s)
+          					_terrain[i][j]=1;
+        				else
+          				_terrain[i][j]=0;
+      				}
+    			}
+    			t=_terrain;
+			}
+			return t;
+    	};
+
+    	//地形参数
+    	var main={p:0.465 , w:2, s:13 , d:25};
+    	var isle={p:0.397 , w:1, s:5  , d:20};
+
+		//地形随机化
+		this.main_terrain=[];
+		this.isle_terrain=[];
+  		for (var i=-3;i<=w+3;i++) {
+    		this.main_terrain[i]=[];
+    		this.isle_terrain[i]=[];
+    		for (var j=-3;j<=h+3;j++) {
+      			this.main_terrain[i][j]=Math.random()<main.p?1:0;
+      			this.isle_terrain[i][j]=Math.random()<isle.p?1:0;
+    		}
+      	}
+
+    	//主地形迭代
+    	this.main_terrain = evol(this.main_terrain,main);
+
+		//分支地形迭代
+		this.isle_terrain = evol(this.isle_terrain,isle);
+
+		//地形融合
+		for (var i=-1;i<=w+1;i++) {
+			this.terrain[i]=[];
+			for (var j=-1;j<=h+1;j++)
+				this.terrain[i][j]=this.main_terrain[i][j] || this.isle_terrain[i][j];
+		}
+	},
+
+	generate_weapon: function(_pos,_id,_ammo) {
+		if (_ammo!=undefined && _ammo<=0) return;
+		var pos = _pos || this.random_pos();
+		if (this.check_terrain(pos)==true) return;
+
+		var new_wpn = new Q.weapon(pos,_id || weapons[Math.floor(Math.random()*weapons.length)],_ammo || Q.weapon_ammo[new_wpn.id]);
+		this.weapons.push(new_wpn);
+	},
+
+	new_bullet: function (player) {
+		var new_bullet = new Q.bullet(player);
+		this.bullets.push(new_bullet);
+	},
+	
+	delete_bullet: function (index) {
+		delete this.bullets[index];
+	},
+
+	delete_weapon: function (index) {
+		delete this.weapons[index];
+	},
+	
+	update_weapons:function() {
+		this.genwpn.cur+=1;
+		if (this.genwpn.cur>=this.genwpn.max) {
+			this.generate_weapon();
+			this.genwpn.cur=0;
+			this.genwpn.max+=10;
+		}
+	},
+
+	update: function (dt) {
+		if (this.running) {
+			this.update_weapons();
+			this.update_players(dt);
+			this.update_bullets(dt);
+			this.renderer.render(this.players,this.bullets,this.weapons,dt);
+		}
+		else
+			this.renderer.render([],[],[],dt);
+	},
+	
+	update_players: function(dt) {
+		for (var id in this.players) 
+			if (this.players[id]!=null) {
+
+
+			//TODO
+
+			if (this.players[id].prop.seek===true) {
+				this.players[id].prop.target = '#';
+				for (var _id in this.players)
+					if (_id!==id) {
+						this.players[id].prop.target = _id;
+						break;
+					}
+			}
+		}
+	},
+
+	update_bullets: function(dt) {
+		for (var index in this.bullets)
+			if (!!this.bullets[index]) {
+				var b = this.bullets[index];
+				this.update_bullet_physics(b,dt);
+				this.bullet_check_hit(index);
+				if (b.seek===true && this.players[b.owner_id]!=undefined && this.players[b.owner_id].prop.target!=undefined)
+					this.bullet_seek(b,this.players[this.players[b.owner_id].prop.target]);
+
+				if (b.destroyable===true)
+						this.delete_bullet(index);
+
+			}
+	},
+	
+	player_use: function (pid) {
+		var p = this.players[pid];
+		if (p==undefined) return;
+
+		if (p.isArmed()===true)
+		{
+			this.generate_weapon(p.weapon,p.pos,p.ammo);
+			this.players[pid].unequip();
+			return;
+		}
+		for (var index in this.weapons) {
+			var w = this.weapons[index];
+			if (!!w)
+				if (dis(p.pos,w.pos)<p.size+35) {
+					this.players[pid].equip(w);
+					this.delete_weapon(index);
+					break;
+				}
+		}
+	},
+
+	player_shoot: function (pid) {
+		var p = this.players[pid];
+		if (p.isArmed()) {
+			if (p.weapon==='Pan') {
+				
+				p.reflect = true;
+				setTimeout(()=>{p.reflect=false},850);
+				for (var id in this.players) {
+					var q = this.players[id];
+					if (id !== pid)
+						if (dis(p.pos,q.pos)<5*p.size)
+							this.cause_damage_to_player(pid,id,p.prop.damage);
+				}
+				return;
+			}
+
+			if (p.ammo>0)
+				this.players[pid].ammo-=1;
+			else 
+				this.players[pid].unequip();
+		}
+		for (var i=0;i<(p.prop.bundle || 1);i++)
+			this.new_bullet(this.players[pid]);
+	},
+
+	bullet_check_hit: function (bindex) {
+		var bullet = this.bullets[bindex];
+		for (var id in this.players) {
+			var p = this.players[id];
+			if (id != bullet.owner_id)
+				if (dis(bullet.pos, p.pos) < bullet.size + p.size) {
+
+					if (p.reflect===true) {
+
+							var a = Math.atan(bullet.dir.y / bullet.dir.x);
+							if (bullet.dir.x<0) a=a+Math.PI;
+							var r = Math.atan((bullet.pos.y - p.pos.y)/(bullet.pos.x - p.pos.x));
+							if (bullet.pos.x<p.pos.x) r=r+Math.PI;
+
+							var new_dir = 2*r+Math.PI - a;
+							bullet.dir = {x:Math.cos(new_dir),y:Math.sin(new_dir)};
+							bullet.owner_id = id;
+							if (this.players[id]!=undefined)
+								this.players[id].prop.seek = bullet.seek;
+							bullet.color = p.color;
+							continue;
+
+					}
+
+					this.cause_damage_to_player(bullet.owner_id,id,bullet.damage);
+					bullet.destroyable = true;
+					break;
+				}
+		}
+
+		if (bullet.destroyable === true) return;
+
+		for (var index in this.boxes) {
+			var b = this.boxes[index];
+			if (dis(bullet.pos, b.pos) < bullet.size + b.size) {
+				this.cause_damage_to_box(bullet.owner_id,index,bullet.damage);
+				bullet.destroyable = true;
+				break;
+			}
+		}
+	},
+
+	cause_damage_to_player: function (oid,pid,dmg) {
+		if (dmg===0) return;
+		var p = this.players[pid];
+		p.health.cur -=dmg;
+		if (p.health.cur <= 0)
+			this.remove_player(pid);
+	},
+	
 });
+
 
 Q.weapon_data = [];
 Q.weapon_ammo = [];
-Q.child_bullet = ['Groza','Micro_Uzi','Kar-98K','PF89','MK14',];
-
-//冲锋枪
-Q.weapon_data['UMP9']={
-			speed : 270,
-			reload : 0.3,
-			bias : 0.08,
-			life : 6,
-			damage : 6,
-			recoil : 2,
-			sight : 1,
-			penetrate : false,
-			bounce : false
-		};
-Q.weapon_ammo['UMP9']=30;
 
 Q.weapon_data['Micro_Uzi']={
 			speed : 280,
@@ -347,26 +522,11 @@ Q.weapon_data['Micro_Uzi']={
 			life : 7,
 			damage : 4,
 			recoil : 1,
-			sight : 1,
 			size : 2,
 			penetrate : false,
 			bounce : false
 		};
 Q.weapon_ammo['Micro_Uzi']=90;
-
-Q.weapon_data['Vector']={
-			speed : 290,
-			reload : 0.2,
-			bias : 0.08,
-			life : 6,
-			damage : 6,
-			recoil : 1,
-			sight : 1,
-			size : 4,
-			penetrate : false,
-			bounce : false
-		};
-Q.weapon_ammo['Vector']=50;
 
 //突击步枪
 Q.weapon_data['AKM']={
@@ -377,37 +537,10 @@ Q.weapon_data['AKM']={
 			damage : 25,
 			recoil : 5,
 			sight : 1,
-			size : 6,
 			penetrate : false,
 			bounce : false
 		};
 Q.weapon_ammo['AKM']=30;
-
-Q.weapon_data['Groza']={
-			speed : 290,
-			reload : 0.22,
-			bias : 0.1,
-			life : 8,
-			damage : 15,
-			recoil : 1,
-			sight : 1.05,
-			penetrate : false,
-			bounce : false
-		};
-Q.weapon_ammo['Groza']=60;
-
-Q.weapon_data['M16A4']={
-			speed : 300,
-			reload : 0.24,
-			bias : 0.12,
-			life : 7,
-			damage : 14,
-			recoil : 2,
-			sight : 1,
-			penetrate : false,
-			bounce : false
-		};
-Q.weapon_ammo['M16A4']=30;
 
 Q.weapon_data['Scar-L']={
 			speed : 310,
@@ -416,7 +549,6 @@ Q.weapon_data['Scar-L']={
 			life : 6,
 			damage : 12,
 			recoil : 1.5,
-			sight : 1,
 			penetrate : false,
 			bounce : false
 		};
@@ -429,7 +561,6 @@ Q.weapon_data['M416']={
 			life : 6,
 			damage : 10,
 			recoil : 1.5,
-			sight : 1,
 			penetrate : false,
 			bounce : false
 		};
@@ -443,40 +574,11 @@ Q.weapon_data['Kar-98K']={
 			life : 12,
 			damage : 50,
 			recoil : 12,
-			sight : 1.1,
 			size : 3,
 			penetrate : true,
 			bounce : false
 		};
 Q.weapon_ammo['Kar-98K']=15;
-
-Q.weapon_data['SKS']={
-			speed : 580,
-			reload : 1,
-			bias : 0.03,
-			life : 13,
-			damage : 45,
-			recoil : 5,
-			sight : 1.1,
-			size : 3.5,
-			penetrate : false,
-			bounce : false
-		};
-Q.weapon_ammo['SKS']=15;
-
-Q.weapon_data['M24']={
-			speed : 580,
-			reload : 3,
-			bias : 0,
-			life : 12,
-			damage : 90,
-			recoil : 25,
-			sight : 1.4,
-			size : 2,
-			penetrate : true,
-			bounce : false
-		};
-Q.weapon_ammo['M24']=5;
 
 Q.weapon_data['AWM']={
 			speed : 600,
@@ -485,26 +587,12 @@ Q.weapon_data['AWM']={
 			life : 13,
 			damage : 80,
 			recoil : 5,
-			sight : 1.2,
 			size : 2.5,
 			penetrate : true,
 			bounce : false
 		};
 Q.weapon_ammo['AWM']=10;
 
-Q.weapon_data['MK14']={
-			speed : 400,
-			reload : 0.8,
-			bias : 0.03,
-			life : 12,
-			damage : 50,
-			recoil : 4,
-			sight : 1.1,
-			size : 3,
-			penetrate : false,
-			bounce : false
-		};
-Q.weapon_ammo['MK14']=15;
 
 //霰弹枪
 Q.weapon_data['S1897']={
@@ -514,7 +602,6 @@ Q.weapon_data['S1897']={
 			life : 4,
 			damage : 15,
 			recoil : 45,
-			sight : 1,
 			size : 4,
 			penetrate : false,
 			bounce : false,
@@ -529,7 +616,6 @@ Q.weapon_data['S686']={
 			life : 3,
 			damage : 32,
 			recoil : 50,
-			sight : 1,
 			size : 5,
 			penetrate : false,
 			bounce : false,
@@ -545,7 +631,6 @@ Q.weapon_data['M249']={
 			life : 12,
 			damage : 10,
 			recoil : 1,
-			sight : 1,
 			size : 4,
 			penetrate : false,
 			bounce : false
@@ -559,94 +644,18 @@ Q.weapon_data['Minigun']={
 			life : 10,
 			damage : 8,
 			recoil : 2,
-			sight : 1,
 			penetrate : false,
 			bounce : false
 		};
 Q.weapon_ammo['Minigun']=100;
 
-//重机枪
-Q.weapon_data['Dominator-77']={
-			speed : 420,
-			reload : 0.12,
-			bias : 0.1,
-			life : 15,
-			damage : 10,
-			recoil : 0,
-			sight : 1.5,
-			size : 5,
-			penetrate : true,
-			bounce : false
-		};
-Q.weapon_ammo['Dominator-77']=100;
-
-//火箭炮
-Q.weapon_data['PF-89']={
-			speed : 150,
-			reload : 3,
-			bias : 0.05,
-			life : 60,
-			damage : 2,
-			recoil : 50,
-			sight : 1.4,
-			size : 12,
-			penetrate : false,
-			bounce : true,
-			hittofade : false
-		};
-Q.weapon_ammo['PF-89']=5;
-
 Q.weapon_data['Pan']={
 			reload : 1,
 			damage : 35,
 			recoil : 0,
-			sight : 1
 		};
 Q.weapon_ammo['Pan']=0;
 
-Q.weapon_data['Grenade']={
-			reload : 2.5,
-			speed : 250,
-			bias : 0,
-			life : 3,
-			damage : 0,
-			recoil : 0,
-			sight : 1,
-			size : 1,
-			penetrate : false,
-			bounce : true,
-			delayedaction : true,
-			hittofade : false,
-			child : 'Grenade_child'
-		};
-Q.weapon_ammo['Grenade']=3;
-
-Q.weapon_data['Grenade_child']={
-			speed : 400,
-			bias : 2,
-			life : 5,
-			damage : 20,
-			size : 5,
-			penetrate : false,
-			bundle : 10,
-			bounce : true
-		};
-Q.weapon_data['DeathGrenade']={
-			reload : 2.5,
-			speed : 250,
-			bias : 0,
-			life : 3,
-			damage : 0,
-			recoil : 0,
-			sight : 1.2,
-			size : 1,
-			penetrate : false,
-			bounce : true,
-			delayedaction : true,
-			hittofade : false,
-			child : 'Grenade'
-		};
-Q.weapon_ammo['DeathGrenade']=2;
 
 Q.weapon_data['Seeker']={
 			reload : 3,
@@ -655,13 +664,9 @@ Q.weapon_data['Seeker']={
 			life : 45,
 			damage : 50,
 			recoil : 40,
-			sight : 1.2,
 			size : 6,
 			penetrate : false,
 			bounce : false,
 			seek : true
 		};
 Q.weapon_ammo['Seeker']=5;
-
-if ('undefined' != typeof global)
-	module.exports = global.Q = Q;
